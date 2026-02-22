@@ -1126,11 +1126,11 @@
             <div class="row">
               <div>
                 <label for="fadeAmount">amount</label>
-                <input id="fadeAmount" type="range" min="0" max="100" step="1" value="10">
+                <input id="fadeAmount" type="range" min="0" max="100" step="1" value="6">
               </div>
               <div>
                 <label for="fadeOpacity">opacity</label>
-                <input id="fadeOpacity" type="range" min="5" max="100" step="1" value="80">
+                <input id="fadeOpacity" type="range" min="5" max="100" step="1" value="90">
               </div>
             </div>
           </div>
@@ -1145,10 +1145,23 @@
             <input id="jogMidline" type="checkbox" checked style="width:auto;height:auto;">
             mid-line jogs
           </label>
+          <button id="effectsShuffle" class="tiny-btn">shuffle affected letters/lines</button>
           <div>
             <label for="blurAmount">blur</label>
             <div>
-              <input id="blurAmount" type="range" min="0" max="100" step="1" value="5">
+              <input id="blurAmount" type="range" min="0" max="25" step="1" value="5">
+            </div>
+          </div>
+          <div>
+            <label for="grainAmount">grain</label>
+            <div>
+              <input id="grainAmount" type="range" min="0" max="100" step="1" value="10">
+            </div>
+          </div>
+          <div>
+            <label for="sunFadeAmount">fade</label>
+            <div>
+              <input id="sunFadeAmount" type="range" min="0" max="100" step="1" value="10">
             </div>
           </div>
           <div>
@@ -1161,7 +1174,6 @@
             <label for="vignetteAmount">vignette amount</label>
             <input id="vignetteAmount" type="range" min="0" max="100" step="1" value="35">
           </div>
-          <button id="effectsShuffle" class="tiny-btn">shuffle which letters and lines are affected</button>
         </section>
 
         <section class="section" data-section-panel="marks">
@@ -1212,7 +1224,7 @@
 (() => {
   'use strict';
 
-  const textureOptions = [
+  const legacyTextureOptions = [
     { id: 'none', label: 'no texture', src: null },
     { id: '1', label: 'paper 1', src: '4.jpg', fallbacks: ['paper textures/4.jpg'] },
     { id: '2', label: 'paper 2', src: '2.jpg', fallbacks: ['paper textures/2.jpg'] },
@@ -1227,6 +1239,7 @@
     { id: '11', label: 'paper 11', src: '11.jpg', fallbacks: ['paper textures/11.jpg'] },
     { id: '12', label: 'paper 12', src: '12.jpg', fallbacks: ['paper textures/12.jpg'] }
   ];
+  let textureOptions = legacyTextureOptions.slice();
 
   const markOptions = [
     { label: '1', src: 'effect1.png', fallbacks: ['effects/effect1.png'] },
@@ -1239,7 +1252,7 @@
     { label: '8', src: 'effect8.png', fallbacks: ['effects/effect8.png'] }
   ];
 
-  const fontOptions = [
+  const baseFontOptions = [
     { label: 'Carbon Type', value: '"Carbon Type"' },
     { label: 'Stamp', value: '"Stamp"' },
     { label: 'Uncle Typewriter', value: '"Uncle Typewriter"' },
@@ -1251,6 +1264,7 @@
     { label: '1942 Report', value: '"1942 Report"' },
     { label: 'Old Newspaper', value: '"Old Newspaper"' }
   ];
+  let fontOptions = baseFontOptions.slice();
 
   const paperOptions = [
     { label: 'warm cream', value: '#f3ecdf' },
@@ -1342,6 +1356,8 @@
     jogAmount: document.getElementById('jogAmount'),
     jogMidline: document.getElementById('jogMidline'),
     blurAmount: document.getElementById('blurAmount'),
+    grainAmount: document.getElementById('grainAmount'),
+    sunFadeAmount: document.getElementById('sunFadeAmount'),
     vignetteEnabled: document.getElementById('vignetteEnabled'),
     vignetteAmountWrap: document.getElementById('vignetteAmountWrap'),
     vignetteAmount: document.getElementById('vignetteAmount'),
@@ -1402,11 +1418,13 @@
 
     effects: {
       doubleAmount: 0.10,
-      fadeAmount: 0.10,
-      fadeOpacity: 0.80,
+      fadeAmount: 0.06,
+      fadeOpacity: 0.90,
       jogAmount: 0.10,
       jogMidline: true,
       blurAmount: 5,
+      grainAmount: 0.10,
+      sunFadeAmount: 0.10,
       vignetteEnabled: false,
       vignetteAmount: 0.35,
       doubleSeed: seed(),
@@ -1439,6 +1457,15 @@
   const textureCache = new Map();
   const markCache = new Map();
   const fontLoadCache = new Map();
+  let grainPattern = null;
+  const dynamicFontFaces = new Set();
+  const historyLimit = 120;
+  const history = {
+    undo: [],
+    redo: [],
+    baseline: '',
+    restoring: false
+  };
 
   function seed() {
     return (Math.random() * 0x7fffffff) | 0;
@@ -1446,6 +1473,294 @@
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function snapshotStateForHistory() {
+    return {
+      width: state.width,
+      height: state.height,
+      canvasPresetValue: state.canvasPresetValue,
+      fontIndex: state.fontIndex,
+      font: state.font,
+      lineHeight: state.lineHeight,
+      inkColor: state.inkColor,
+      paperIndex: state.paperIndex,
+      paperColor: state.paperColor,
+      paperIsCustom: state.paperIsCustom,
+      textureIndex: state.textureIndex,
+      textureBlend: state.textureBlend,
+      effects: { ...state.effects },
+      textBoxes: state.textBoxes.map((box) => ({ ...box })),
+      textBoxCounter: state.textBoxCounter,
+      selectedTextBoxId: state.selectedTextBoxId,
+      marks: state.marks.map((mark) => ({ ...mark })),
+      selectedMarkId: state.selectedMarkId,
+      markSourceIndex: state.markSourceIndex,
+      defaultMarkFlipY: state.defaultMarkFlipY
+    };
+  }
+
+  function serializeStateForHistory() {
+    try {
+      return JSON.stringify(snapshotStateForHistory());
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function normalizeTextBoxFromSnapshot(raw, fallbackId) {
+    const box = (raw && typeof raw === 'object') ? raw : {};
+    return {
+      id: typeof box.id === 'string' && box.id ? box.id : fallbackId,
+      text: typeof box.text === 'string' ? box.text : '',
+      x: Number.isFinite(Number(box.x)) ? Number(box.x) : 0,
+      y: Number.isFinite(Number(box.y)) ? Number(box.y) : 0,
+      w: Number.isFinite(Number(box.w)) ? Number(box.w) : textBoxMinW,
+      h: Number.isFinite(Number(box.h)) ? Number(box.h) : textBoxMinH,
+      rotation: Number.isFinite(Number(box.rotation)) ? Number(box.rotation) : 0,
+      align: typeof box.align === 'string' ? box.align : 'left',
+      fontIndex: Number.isFinite(Number(box.fontIndex)) ? Math.round(Number(box.fontIndex)) : state.fontIndex,
+      font: typeof box.font === 'string' ? box.font : state.font,
+      lineHeight: Number.isFinite(Number(box.lineHeight)) ? Number(box.lineHeight) : state.lineHeight,
+      inkColor: normalizeHexColor(box.inkColor, state.inkColor),
+      customInk: normalizeHexColor(box.customInk || box.inkColor, state.inkColor)
+    };
+  }
+
+  function normalizeMarkFromSnapshot(raw, fallbackId) {
+    const mark = (raw && typeof raw === 'object') ? raw : {};
+    return {
+      id: typeof mark.id === 'string' && mark.id ? mark.id : fallbackId,
+      assetIndex: Number.isFinite(Number(mark.assetIndex)) ? Math.round(Number(mark.assetIndex)) : 0,
+      x: Number.isFinite(Number(mark.x)) ? Number(mark.x) : 0,
+      y: Number.isFinite(Number(mark.y)) ? Number(mark.y) : 0,
+      w: Number.isFinite(Number(mark.w)) ? Number(mark.w) : markMinW,
+      h: Number.isFinite(Number(mark.h)) ? Number(mark.h) : markMinH,
+      rotation: Number.isFinite(Number(mark.rotation)) ? Number(mark.rotation) : 0,
+      flipY: Boolean(mark.flipY),
+      opacity: clamp(Number.isFinite(Number(mark.opacity)) ? Number(mark.opacity) : 1, 0, 1),
+      color: normalizeHexColor(mark.color, state.inkColor)
+    };
+  }
+
+  function applyHistorySnapshot(serialized) {
+    if (!serialized) {
+      return false;
+    }
+
+    let snapshot;
+    try {
+      snapshot = JSON.parse(serialized);
+    } catch (error) {
+      return false;
+    }
+    if (!snapshot || typeof snapshot !== 'object') {
+      return false;
+    }
+
+    history.restoring = true;
+    try {
+      closeCanvasTextEditor();
+      resetInteraction();
+      state.openTextColorBoxId = null;
+      state.textEditing = false;
+
+      state.width = clamp(Math.round(Number(snapshot.width) || state.width), 300, 5000);
+      state.height = clamp(Math.round(Number(snapshot.height) || state.height), 300, 7000);
+      state.canvasPresetValue = typeof snapshot.canvasPresetValue === 'string' ? snapshot.canvasPresetValue : state.canvasPresetValue;
+
+      state.fontIndex = clamp(Math.round(Number(snapshot.fontIndex) || 0), 0, Math.max(0, fontOptions.length - 1));
+      state.font = fontOptions[state.fontIndex] ? fontOptions[state.fontIndex].value : fontOptions[0].value;
+      state.lineHeight = clamp(Number(snapshot.lineHeight) || state.lineHeight, 0.85, 2.2);
+      state.inkColor = normalizeHexColor(snapshot.inkColor, state.inkColor);
+
+      state.paperIndex = clamp(Math.round(Number(snapshot.paperIndex) || 0), 0, Math.max(0, paperOptions.length - 1));
+      state.paperColor = normalizeHexColor(snapshot.paperColor, paperOptions[state.paperIndex] ? paperOptions[state.paperIndex].value : state.paperColor);
+      state.paperIsCustom = Boolean(snapshot.paperIsCustom);
+
+      const textureCount = Math.max(1, textureOptions.length);
+      const nextTextureIndex = Number.isFinite(Number(snapshot.textureIndex)) ? Math.round(Number(snapshot.textureIndex)) : 0;
+      state.textureIndex = ((nextTextureIndex % textureCount) + textureCount) % textureCount;
+      state.textureBlend = clamp(Number(snapshot.textureBlend) || 0, 0, 1);
+
+      const effectSnapshot = (snapshot.effects && typeof snapshot.effects === 'object') ? snapshot.effects : {};
+      state.effects.doubleAmount = clamp(Number(effectSnapshot.doubleAmount) || 0, 0, 1);
+      state.effects.fadeAmount = clamp(Number(effectSnapshot.fadeAmount) || 0, 0, 1);
+      state.effects.fadeOpacity = clamp(Number(effectSnapshot.fadeOpacity) || 0.9, 0.05, 1);
+      state.effects.jogAmount = clamp(Number(effectSnapshot.jogAmount) || 0, 0, 1);
+      state.effects.jogMidline = Boolean(effectSnapshot.jogMidline);
+      state.effects.blurAmount = clamp(Number(effectSnapshot.blurAmount) || 0, 0, 25);
+      state.effects.grainAmount = clamp(Number(effectSnapshot.grainAmount) || 0, 0, 1);
+      state.effects.sunFadeAmount = clamp(Number(effectSnapshot.sunFadeAmount) || 0, 0, 1);
+      state.effects.vignetteEnabled = Boolean(effectSnapshot.vignetteEnabled);
+      state.effects.vignetteAmount = clamp(Number(effectSnapshot.vignetteAmount) || 0, 0, 1);
+
+      const doubleSeed = Number(effectSnapshot.doubleSeed);
+      const fadeSeed = Number(effectSnapshot.fadeSeed);
+      const jogSeed = Number(effectSnapshot.jogSeed);
+      if (Number.isFinite(doubleSeed)) {
+        state.effects.doubleSeed = Math.round(doubleSeed);
+      }
+      if (Number.isFinite(fadeSeed)) {
+        state.effects.fadeSeed = Math.round(fadeSeed);
+      }
+      if (Number.isFinite(jogSeed)) {
+        state.effects.jogSeed = Math.round(jogSeed);
+      }
+
+      const boxes = Array.isArray(snapshot.textBoxes)
+        ? snapshot.textBoxes.map((box, index) => normalizeTextBoxFromSnapshot(box, `tb-${index + 1}`))
+        : [];
+      state.textBoxes = boxes;
+      for (const box of state.textBoxes) {
+        ensureTextBoxStyle(box);
+        clampTextBoxToCanvas(box);
+      }
+      if (!state.textBoxes.length) {
+        state.textBoxes.push(createTextBox(''));
+      }
+
+      const snapshotCounter = Number(snapshot.textBoxCounter);
+      state.textBoxCounter = Number.isFinite(snapshotCounter) ? Math.max(0, Math.round(snapshotCounter)) : 0;
+      for (const box of state.textBoxes) {
+        const match = /^tb-(\d+)$/.exec(box.id);
+        if (match) {
+          state.textBoxCounter = Math.max(state.textBoxCounter, Number(match[1]) || 0);
+        }
+      }
+      state.textBoxCounter = Math.max(state.textBoxCounter, state.textBoxes.length);
+
+      const requestedSelectedTextId = typeof snapshot.selectedTextBoxId === 'string' ? snapshot.selectedTextBoxId : '';
+      state.selectedTextBoxId = state.textBoxes.some((box) => box.id === requestedSelectedTextId)
+        ? requestedSelectedTextId
+        : state.textBoxes[0].id;
+      syncStyleDefaultsFromBox(getTextBoxById(state.selectedTextBoxId));
+
+      const marks = Array.isArray(snapshot.marks)
+        ? snapshot.marks.map((mark, index) => normalizeMarkFromSnapshot(mark, `mk-restored-${index + 1}`))
+        : [];
+      state.marks = marks;
+      for (const mark of state.marks) {
+        mark.assetIndex = clamp(mark.assetIndex, 0, Math.max(0, markOptions.length - 1));
+        mark.w = clamp(mark.w, markMinW, state.width);
+        mark.h = clamp(mark.h, markMinH, state.height);
+        clampMarkPosition(mark);
+      }
+
+      const requestedSelectedMarkId = typeof snapshot.selectedMarkId === 'string' ? snapshot.selectedMarkId : '';
+      state.selectedMarkId = state.marks.some((mark) => mark.id === requestedSelectedMarkId)
+        ? requestedSelectedMarkId
+        : null;
+
+      const markSourceCount = Math.max(1, markOptions.length);
+      const requestedMarkSource = Number.isFinite(Number(snapshot.markSourceIndex)) ? Math.round(Number(snapshot.markSourceIndex)) : 0;
+      state.markSourceIndex = ((requestedMarkSource % markSourceCount) + markSourceCount) % markSourceCount;
+      state.defaultMarkFlipY = Boolean(snapshot.defaultMarkFlipY);
+
+      state.showTextUi = !state.selectedMarkId;
+      state.snap.x = false;
+      state.snap.y = false;
+
+      els.canvas.width = state.width;
+      els.canvas.height = state.height;
+      els.canvasWidth.value = String(state.width);
+      els.canvasHeight.value = String(state.height);
+      els.paperCustom.value = state.paperColor;
+
+      renderCanvasPresetButtons();
+      updateCanvasPresetUi();
+      renderTextList();
+      updatePaperDisplay();
+      updateTextureLabel();
+      updateTextureControlsVisibility();
+      updateVignetteControlsVisibility();
+      updateMarkSourceDisplay();
+      updateMarkControls();
+      updateCanvasDisplay();
+      render();
+
+      history.baseline = serializeStateForHistory();
+      return true;
+    } finally {
+      history.restoring = false;
+    }
+  }
+
+  function recordHistorySnapshot() {
+    if (history.restoring || state.interaction.mode !== 'none') {
+      return;
+    }
+
+    const current = serializeStateForHistory();
+    if (!current) {
+      return;
+    }
+    if (!history.baseline) {
+      history.baseline = current;
+      return;
+    }
+    if (current === history.baseline) {
+      return;
+    }
+
+    history.undo.push(history.baseline);
+    if (history.undo.length > historyLimit) {
+      history.undo.shift();
+    }
+    history.baseline = current;
+    history.redo = [];
+  }
+
+  function undoHistory() {
+    if (!history.undo.length) {
+      return false;
+    }
+
+    const current = serializeStateForHistory();
+    const previous = history.undo.pop();
+    if (current) {
+      history.redo.push(current);
+      if (history.redo.length > historyLimit) {
+        history.redo.shift();
+      }
+    }
+    if (!applyHistorySnapshot(previous)) {
+      if (current) {
+        history.redo.pop();
+      }
+      if (previous) {
+        history.undo.push(previous);
+      }
+      return false;
+    }
+
+    return true;
+  }
+
+  function redoHistory() {
+    if (!history.redo.length) {
+      return false;
+    }
+
+    const current = serializeStateForHistory();
+    const next = history.redo.pop();
+    if (current) {
+      history.undo.push(current);
+      if (history.undo.length > historyLimit) {
+        history.undo.shift();
+      }
+    }
+    if (!applyHistorySnapshot(next)) {
+      if (current) {
+        history.undo.pop();
+      }
+      if (next) {
+        history.redo.push(next);
+      }
+      return false;
+    }
+
+    return true;
   }
 
   function hash01(base, a, b, c) {
@@ -1501,12 +1816,356 @@
     return textureOptions[state.textureIndex] || textureOptions[0];
   }
 
-  function buildAssetCandidates(assetPath, extraCandidates = []) {
-    const normalized = String(assetPath || '')
+  function normalizeAssetPath(value) {
+    return String(value || '')
       .trim()
       .replace(/\\/g, '/')
       .replace(/^\.\/+/, '')
       .replace(/^\/+/, '');
+  }
+
+  function normalizeAssetDir(value) {
+    const normalized = normalizeAssetPath(value);
+    if (!normalized) {
+      return '';
+    }
+    return normalized.endsWith('/') ? normalized : `${normalized}/`;
+  }
+
+  function decodeUriSafe(value) {
+    try {
+      return decodeURIComponent(value);
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function joinAssetPath(baseDir, entry) {
+    const dir = normalizeAssetDir(baseDir);
+    const cleanEntry = normalizeAssetPath(entry).replace(/^\/+/, '');
+    if (!cleanEntry) {
+      return '';
+    }
+    if (dir && cleanEntry.startsWith(dir)) {
+      return cleanEntry;
+    }
+    return `${dir}${cleanEntry}`;
+  }
+
+  function parseDirectoryLinks(markup) {
+    if (!markup || typeof DOMParser === 'undefined') {
+      return [];
+    }
+    const doc = new DOMParser().parseFromString(markup, 'text/html');
+    const links = [];
+    for (const node of Array.from(doc.querySelectorAll('a[href]'))) {
+      const rawHref = String(node.getAttribute('href') || '').trim();
+      if (!rawHref || rawHref === './' || rawHref === '../') {
+        continue;
+      }
+      if (rawHref.startsWith('/')) {
+        continue;
+      }
+      if (/^(data|javascript|mailto|tel):/i.test(rawHref) || rawHref.startsWith('//')) {
+        continue;
+      }
+      const cleanHref = rawHref.split('#')[0].split('?')[0];
+      if (!cleanHref || cleanHref === './' || cleanHref === '../') {
+        continue;
+      }
+      links.push(decodeUriSafe(cleanHref));
+    }
+    return links;
+  }
+
+  async function listDirectoryEntries(dirPath) {
+    const path = normalizeAssetDir(dirPath);
+    const requestPath = path ? `./${path}` : './';
+    try {
+      const response = await fetch(requestPath, { cache: 'no-store' });
+      if (!response.ok) {
+        return [];
+      }
+      const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+      if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
+        return [];
+      }
+      const body = await response.text();
+      if (!/<a\b[^>]*href=/i.test(body)) {
+        return [];
+      }
+      return parseDirectoryLinks(body);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function formatFontLabelFromPath(path) {
+    const filename = normalizeAssetPath(path).split('/').pop() || '';
+    const withoutExt = filename.replace(/\.ttf$/i, '');
+    return (withoutExt || filename)
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function quoteFontFamily(name) {
+    const escaped = String(name || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  }
+
+  function registerDynamicFontFace(family, assetPath) {
+    if (!family || !assetPath) {
+      return;
+    }
+    const key = `${family}::${assetPath}`;
+    if (dynamicFontFaces.has(key)) {
+      return;
+    }
+    const safeFamily = String(family).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const safePath = encodeURI(assetPath).replace(/"/g, '%22');
+    const style = document.createElement('style');
+    style.textContent = `@font-face{font-family:"${safeFamily}";src:url("${safePath}") format("truetype");font-display:swap;}`;
+    document.head.appendChild(style);
+    dynamicFontFaces.add(key);
+  }
+
+  function getDeclaredTtfAssets() {
+    const paths = new Set();
+    const basenames = new Set();
+    const fontFaceRuleType = (typeof CSSRule !== 'undefined' && Number.isFinite(CSSRule.FONT_FACE_RULE))
+      ? CSSRule.FONT_FACE_RULE
+      : 5;
+
+    for (const sheet of Array.from(document.styleSheets || [])) {
+      let rules;
+      try {
+        rules = sheet.cssRules;
+      } catch (error) {
+        continue;
+      }
+      if (!rules) {
+        continue;
+      }
+
+      for (const rule of Array.from(rules)) {
+        if (!(rule && rule.type === fontFaceRuleType)) {
+          continue;
+        }
+        const src = String(rule.style.getPropertyValue('src') || '');
+        const matches = src.match(/url\(([^)]+)\)/gi) || [];
+        for (const match of matches) {
+          const urlValue = match
+            .replace(/^url\(/i, '')
+            .replace(/\)$/i, '')
+            .trim()
+            .replace(/^['"]|['"]$/g, '');
+          const normalized = normalizeAssetPath(decodeUriSafe(urlValue));
+          if (!/\.ttf$/i.test(normalized)) {
+            continue;
+          }
+          paths.add(normalized.toLowerCase());
+          const basename = normalized.split('/').pop();
+          if (basename) {
+            basenames.add(basename.toLowerCase());
+          }
+        }
+      }
+    }
+
+    return { paths, basenames };
+  }
+
+  async function discoverTtfFontPaths(maxDepth = 4) {
+    const queue = [{ dir: 'fonts/', depth: 0 }];
+    const visited = new Set();
+    const discovered = new Set();
+
+    while (queue.length) {
+      const current = queue.shift();
+      if (!current) {
+        break;
+      }
+      const dir = normalizeAssetDir(current.dir);
+      if (!dir || visited.has(dir)) {
+        continue;
+      }
+      visited.add(dir);
+
+      const entries = await listDirectoryEntries(dir);
+      for (const entry of entries) {
+        const joined = joinAssetPath(dir, entry);
+        if (!joined) {
+          continue;
+        }
+        const isDir = /\/$/.test(entry);
+        if (isDir) {
+          if (current.depth < maxDepth) {
+            queue.push({ dir: joined, depth: current.depth + 1 });
+          }
+          continue;
+        }
+        if (/\.ttf$/i.test(joined)) {
+          discovered.add(joined);
+        }
+      }
+    }
+
+    return Array.from(discovered).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  }
+
+  async function probeImageSource(path, timeoutMs = 2500) {
+    const normalized = normalizeAssetPath(path);
+    if (!normalized) {
+      return false;
+    }
+
+    return new Promise((resolve) => {
+      const image = new Image();
+      let settled = false;
+      const finalize = (ok) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        image.onload = null;
+        image.onerror = null;
+        window.clearTimeout(timer);
+        resolve(ok);
+      };
+      const timer = window.setTimeout(() => finalize(false), timeoutMs);
+      image.onload = () => finalize(true);
+      image.onerror = () => finalize(false);
+      image.src = normalized;
+    });
+  }
+
+  async function discoverNumberedTextureOptions(maxNumber = 100) {
+    const found = [];
+    const numbers = Array.from({ length: Math.max(0, maxNumber) }, (_, index) => index + 1);
+    const concurrency = 8;
+    let cursor = 0;
+
+    const worker = async () => {
+      while (cursor < numbers.length) {
+        const number = numbers[cursor];
+        cursor += 1;
+        const src = `paper textures/${number}.png`;
+        const exists = await probeImageSource(src);
+        if (exists) {
+          found.push({
+            id: String(number),
+            label: `paper ${number}`,
+            src,
+            fallbacks: [`${number}.png`]
+          });
+        }
+      }
+    };
+
+    await Promise.all(new Array(concurrency).fill(null).map(() => worker()));
+    found.sort((a, b) => Number(a.id) - Number(b.id));
+    return found;
+  }
+
+  async function applyDynamicTextureOptions() {
+    const discovered = await discoverNumberedTextureOptions(100);
+    if (!discovered.length) {
+      textureOptions = legacyTextureOptions.slice();
+      return false;
+    }
+
+    const discoveredLabels = new Set(discovered.map((option) => option.label.toLowerCase()));
+    const legacyRemainder = legacyTextureOptions
+      .slice(1)
+      .filter((option) => !discoveredLabels.has(option.label.toLowerCase()));
+
+    textureOptions = [{ id: 'none', label: 'no texture', src: null }, ...discovered, ...legacyRemainder];
+    textureCache.clear();
+    if (state.textureIndex >= textureOptions.length) {
+      state.textureIndex = 0;
+    }
+    return true;
+  }
+
+  async function applyDynamicFontOptions() {
+    const discoveredPaths = await discoverTtfFontPaths();
+    if (!discoveredPaths.length) {
+      fontOptions = baseFontOptions.slice();
+      return false;
+    }
+
+    const declaredTtf = getDeclaredTtfAssets();
+    const existingLabels = new Set(baseFontOptions.map((option) => option.label.trim().toLowerCase()));
+    const additions = [];
+
+    for (const path of discoveredPaths) {
+      const normalizedPath = normalizeAssetPath(path);
+      const basename = normalizedPath.split('/').pop();
+      if (declaredTtf.paths.has(normalizedPath.toLowerCase())) {
+        continue;
+      }
+      if (basename && declaredTtf.basenames.has(basename.toLowerCase())) {
+        continue;
+      }
+
+      const baseLabel = formatFontLabelFromPath(path);
+      if (!baseLabel) {
+        continue;
+      }
+      const label = baseLabel;
+      const labelKey = label.toLowerCase();
+      if (existingLabels.has(labelKey)) {
+        continue;
+      }
+
+      registerDynamicFontFace(label, path);
+      additions.push({
+        label,
+        value: quoteFontFamily(label)
+      });
+      existingLabels.add(labelKey);
+    }
+
+    additions.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }));
+    fontOptions = baseFontOptions.concat(additions);
+    return additions.length > 0;
+  }
+
+  async function discoverDynamicAssets() {
+    const [texturesChanged, fontsChanged] = await Promise.all([
+      applyDynamicTextureOptions(),
+      applyDynamicFontOptions()
+    ]);
+
+    if (texturesChanged) {
+      if (state.textureIndex >= textureOptions.length) {
+        state.textureIndex = 0;
+      }
+      updateTextureLabel();
+      updateTextureControlsVisibility();
+      for (let i = 1; i < Math.min(textureOptions.length, 4); i += 1) {
+        loadTexture(i);
+      }
+    }
+
+    if (fontsChanged) {
+      state.fontIndex = clamp(state.fontIndex, 0, Math.max(0, fontOptions.length - 1));
+      state.font = fontOptions[state.fontIndex] ? fontOptions[state.fontIndex].value : fontOptions[0].value;
+      for (const box of state.textBoxes) {
+        ensureTextBoxStyle(box);
+      }
+      renderTextList();
+      warmFontLoads();
+    }
+
+    if (texturesChanged || fontsChanged) {
+      render();
+    }
+  }
+
+  function buildAssetCandidates(assetPath, extraCandidates = []) {
+    const normalized = normalizeAssetPath(assetPath);
 
     if (!normalized) {
       return [];
@@ -1529,11 +2188,7 @@
     }
 
     for (const extra of extraCandidates) {
-      const normalizedExtra = String(extra || '')
-        .trim()
-        .replace(/\\/g, '/')
-        .replace(/^\.\/+/, '')
-        .replace(/^\/+/, '');
+      const normalizedExtra = normalizeAssetPath(extra);
       addCandidate(normalizedExtra);
       addCandidate(`./${normalizedExtra}`);
     }
@@ -2239,6 +2894,24 @@
     renderTextList();
     updateMarkControls();
     render();
+  }
+
+  function discardDuplicateEmptySelectedTextBox() {
+    const selected = getTextBoxById(state.selectedTextBoxId);
+    if (!selected) {
+      return false;
+    }
+    if (/\S/.test(selected.text || '')) {
+      return false;
+    }
+
+    const hasAnotherEmpty = state.textBoxes.some((box) => box.id !== selected.id && !/\S/.test(box.text || ''));
+    if (!hasAnotherEmpty) {
+      return false;
+    }
+
+    removeTextBox(selected.id);
+    return true;
   }
 
   function renderTextList() {
@@ -3113,6 +3786,8 @@
     drawTextBoxes();
     drawMarks();
     applyGlobalBlur();
+    applyGrain();
+    applySunFade();
     applyVignette();
     drawGuides();
     updateCanvasTextEditor();
@@ -3120,6 +3795,7 @@
     updateTextCanvasAlignHud();
     updateVignetteControlsVisibility();
     updateMarkFlipUi();
+    recordHistorySnapshot();
   }
 
   function applyGlobalBlur() {
@@ -3141,6 +3817,84 @@
     ctx.clearRect(0, 0, state.width, state.height);
     ctx.filter = `blur(${blurPx.toFixed(2)}px)`;
     ctx.drawImage(offscreen, 0, 0);
+    ctx.restore();
+  }
+
+  function getGrainPattern() {
+    if (grainPattern) {
+      return grainPattern;
+    }
+
+    const noiseCanvas = document.createElement('canvas');
+    noiseCanvas.width = 128;
+    noiseCanvas.height = 128;
+    const noiseCtx = noiseCanvas.getContext('2d');
+    if (!noiseCtx) {
+      return null;
+    }
+
+    const imageData = noiseCtx.createImageData(noiseCanvas.width, noiseCanvas.height);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const value = Math.floor(Math.random() * 256);
+      data[i] = value;
+      data[i + 1] = value;
+      data[i + 2] = value;
+      data[i + 3] = 255;
+    }
+    noiseCtx.putImageData(imageData, 0, 0);
+
+    grainPattern = ctx.createPattern(noiseCanvas, 'repeat');
+    return grainPattern;
+  }
+
+  function applyGrain() {
+    const amount = clamp(state.effects.grainAmount, 0, 1);
+    if (amount <= 0.001) {
+      return;
+    }
+
+    const pattern = getGrainPattern();
+    if (!pattern) {
+      return;
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalAlpha = 0.08 + amount * 0.25;
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, state.width, state.height);
+    ctx.restore();
+  }
+
+  function applySunFade() {
+    const amount = clamp(state.effects.sunFadeAmount, 0, 1);
+    if (amount <= 0.001) {
+      return;
+    }
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = state.width;
+    offscreen.height = state.height;
+    const offCtx = offscreen.getContext('2d');
+    if (!offCtx) {
+      return;
+    }
+    offCtx.drawImage(els.canvas, 0, 0);
+
+    const saturation = 1 - amount * 0.28;
+    const contrast = 1 - amount * 0.14;
+    const brightness = 1 + amount * 0.07;
+
+    ctx.save();
+    ctx.clearRect(0, 0, state.width, state.height);
+    ctx.filter = `saturate(${saturation.toFixed(3)}) contrast(${contrast.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
+    ctx.drawImage(offscreen, 0, 0);
+
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.02 + amount * 0.06;
+    ctx.fillStyle = '#f4ecd8';
+    ctx.fillRect(0, 0, state.width, state.height);
     ctx.restore();
   }
 
@@ -3316,21 +4070,58 @@
     render();
   }
 
-  function addTextBox() {
+  function deleteSelectedTextBoxFromKeyboard() {
+    const selected = getTextBoxById(state.selectedTextBoxId);
+    if (!selected || !state.showTextUi || state.selectedMarkId || state.canvasEditor.active) {
+      return false;
+    }
+
+    removeTextBox(selected.id);
+    if (!state.textBoxes.length) {
+      const replacement = createTextBox('');
+      state.textBoxes.push(replacement);
+      setSelectedTextBox(replacement.id, false);
+      renderTextList();
+      render();
+    }
+
+    return true;
+  }
+
+  function showTextBoxLimitNotice() {
     if (state.textBoxes.length >= maxTextBoxes) {
       const previous = els.addTextBoxBtn.textContent;
       els.addTextBoxBtn.textContent = `max ${maxTextBoxes} text boxes`;
       window.setTimeout(() => {
         els.addTextBoxBtn.textContent = previous;
       }, 1100);
-      return;
+      return true;
+    }
+    return false;
+  }
+
+  function addTextBoxAtPoint(point = null, openCanvasEditor = false) {
+    if (showTextBoxLimitNotice()) {
+      return null;
     }
 
     const box = createTextBox('');
+    if (point && Number.isFinite(point.x) && Number.isFinite(point.y)) {
+      box.x = Math.round(point.x - box.w * 0.5);
+      box.y = Math.round(point.y - box.h * 0.5);
+      clampTextBoxToCanvas(box);
+    }
+
     state.textBoxes.push(box);
     setSelectedTextBox(box.id, true);
     renderTextList();
     state.textEditing = true;
+
+    if (openCanvasEditor) {
+      openCanvasTextEditor(box.id, true);
+      return box;
+    }
+
     window.requestAnimationFrame(() => {
       const input = els.textList.querySelector(`.text-item[data-box-id="${box.id}"] textarea`);
       if (input) {
@@ -3338,6 +4129,11 @@
       }
     });
     render();
+    return box;
+  }
+
+  function addTextBox() {
+    addTextBoxAtPoint(null, false);
   }
 
   function resetInteraction() {
@@ -3723,6 +4519,7 @@
           continue;
         }
 
+        discardDuplicateEmptySelectedTextBox();
         state.selectedMarkId = mark.id;
         state.defaultMarkFlipY = Boolean(mark.flipY);
         state.showTextUi = false;
@@ -3778,6 +4575,9 @@
         if (!pointInRotatedRect(point, box, box.rotation)) {
           continue;
         }
+        if (box.id !== state.selectedTextBoxId) {
+          discardDuplicateEmptySelectedTextBox();
+        }
 
         state.interaction.mode = 'dragText';
         state.interaction.targetId = box.id;
@@ -3792,12 +4592,37 @@
         return;
       }
 
+      discardDuplicateEmptySelectedTextBox();
       state.showTextUi = false;
       state.selectedMarkId = null;
       state.textEditing = false;
       updateMarkControls();
       render();
       resetInteraction();
+    });
+
+    els.canvas.addEventListener('dblclick', (event) => {
+      if (state.exporting) {
+        return;
+      }
+      if (typeof event.button === 'number' && event.button !== 0) {
+        return;
+      }
+
+      const point = getCanvasPoint(event);
+      for (const box of state.textBoxes) {
+        if (hitTextControl(box, point)) {
+          return;
+        }
+      }
+      for (const mark of state.marks) {
+        if (hitMarkControl(mark, point, true)) {
+          return;
+        }
+      }
+
+      event.preventDefault();
+      addTextBoxAtPoint(point, true);
     });
 
     els.canvas.addEventListener('pointermove', (event) => {
@@ -3955,7 +4780,32 @@
 
   function bindCanvasTyping() {
     els.canvas.addEventListener('keydown', (event) => {
-      if (state.exporting || state.canvasEditor.active || !state.textEditing || state.selectedMarkId) {
+      if (state.exporting) {
+        return;
+      }
+
+      const key = String(event.key || '');
+      const lowerKey = key.toLowerCase();
+      const hasPrimaryModifier = event.metaKey || event.ctrlKey;
+      if (hasPrimaryModifier && !event.altKey && lowerKey === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          redoHistory();
+        } else {
+          undoHistory();
+        }
+        return;
+      }
+
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && (key === 'Backspace' || key === 'Delete')) {
+        if (!state.textEditing && !state.canvasEditor.active && !state.selectedMarkId) {
+          deleteSelectedTextBoxFromKeyboard();
+          event.preventDefault();
+          return;
+        }
+      }
+
+      if (state.canvasEditor.active || !state.textEditing || state.selectedMarkId) {
         return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey) {
@@ -4134,7 +4984,7 @@
     });
 
     els.fadeOpacity.addEventListener('input', () => {
-      state.effects.fadeOpacity = sliderToUnit(els.fadeOpacity, 80);
+      state.effects.fadeOpacity = sliderToUnit(els.fadeOpacity, 90);
       render();
     });
 
@@ -4149,7 +4999,17 @@
     });
 
     els.blurAmount.addEventListener('input', () => {
-      state.effects.blurAmount = clamp(Number(els.blurAmount.value) || 0, 0, 100);
+      state.effects.blurAmount = clamp(Number(els.blurAmount.value) || 0, 0, 25);
+      render();
+    });
+
+    els.grainAmount.addEventListener('input', () => {
+      state.effects.grainAmount = sliderToUnit(els.grainAmount);
+      render();
+    });
+
+    els.sunFadeAmount.addEventListener('input', () => {
+      state.effects.sunFadeAmount = sliderToUnit(els.sunFadeAmount);
       render();
     });
 
@@ -4285,6 +5145,8 @@
     els.jogAmount.value = String(Math.round(state.effects.jogAmount * 100));
     els.jogMidline.checked = state.effects.jogMidline;
     els.blurAmount.value = String(state.effects.blurAmount);
+    els.grainAmount.value = String(Math.round(state.effects.grainAmount * 100));
+    els.sunFadeAmount.value = String(Math.round(state.effects.sunFadeAmount * 100));
     els.vignetteEnabled.checked = state.effects.vignetteEnabled;
     els.vignetteAmount.value = String(Math.round(state.effects.vignetteAmount * 100));
     els.paperCustom.value = state.paperColor;
@@ -4333,6 +5195,10 @@
     loadTexture(3);
     loadMarkImage(0);
     loadMarkImage(1);
+
+    discoverDynamicAssets().catch((error) => {
+      console.warn('Asset discovery failed:', error);
+    });
 
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => {
