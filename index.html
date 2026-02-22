@@ -1,0 +1,4125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="typedup - make text look typewritten on textured paper">
+<meta name="theme-color" content="#f1ece2">
+<title>typedup</title>
+<style>
+  @font-face {
+    font-family: "Uncle Typewriter";
+    src: url("fonts/uncle_typewriter/UNCLETYP.TTF") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Carbon Type";
+    src: url("fonts/carbon.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Another Typewriter";
+    src: url("fonts/another_typewriter/atwriter.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Draconian Typewriter";
+    src: url("fonts/DraconianTypewritter001.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Junkos Typewriter";
+    src: url("fonts/junkos_typewriter/junkos typewriter.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Kingthings Trypewriter";
+    src: url("fonts/kingthings_trypewriter/Kingthings Trypewriter 2.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Veteran Typewriter";
+    src: url("fonts/veteran_typewriter/veteran typewriter.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "1942 Report";
+    src: url("fonts/1942_report/1942.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Old Newspaper";
+    src: url("fonts/OldNewspaperTypes.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Stamp";
+    src: url("fonts/Stamp.ttf") format("truetype");
+    font-display: swap;
+  }
+
+  :root {
+    --bg: #ece8de;
+    --fg: #221d15;
+    --muted: #6f6452;
+    --panel: rgba(247, 243, 235, 0.96);
+    --panel-border: rgba(61, 51, 35, 0.14);
+    --btn: rgba(35, 29, 21, 0.08);
+    --btn-hover: rgba(35, 29, 21, 0.16);
+    --shadow: 0 22px 50px rgba(33, 27, 19, 0.2);
+    --accent: #6f5f44;
+  }
+
+  body.dark {
+    --bg: #141311;
+    --fg: #ece3d5;
+    --muted: #a79c88;
+    --panel: rgba(24, 22, 19, 0.96);
+    --panel-border: rgba(235, 222, 202, 0.14);
+    --btn: rgba(238, 226, 208, 0.12);
+    --btn-hover: rgba(238, 226, 208, 0.23);
+    --shadow: 0 28px 58px rgba(0, 0, 0, 0.58);
+    --accent: #c7af86;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    color: var(--fg);
+    font-family: "Garamond", "EB Garamond", "Cormorant Garamond", "Times New Roman", serif;
+    background:
+      radial-gradient(115% 90% at 14% 8%, rgba(255, 250, 239, 0.6), transparent 52%),
+      radial-gradient(110% 100% at 90% 86%, rgba(147, 123, 80, 0.16), transparent 58%),
+      var(--bg);
+  }
+
+  body.dark {
+    background:
+      radial-gradient(120% 90% at 10% 10%, rgba(165, 144, 110, 0.14), transparent 50%),
+      radial-gradient(98% 85% at 90% 88%, rgba(50, 45, 37, 0.36), transparent 58%),
+      var(--bg);
+  }
+
+  #app {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    z-index: 20;
+    user-select: none;
+  }
+
+  .title {
+    font-size: 19px;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    opacity: 0.92;
+  }
+
+  .layout {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 60%) minmax(320px, 40%);
+    gap: 12px;
+    padding: 0 12px 12px;
+    transition: grid-template-columns 0.28s ease;
+    min-height: 0;
+  }
+
+  #app.panel-collapsed .layout {
+    grid-template-columns: minmax(0, 1fr) 0;
+  }
+
+  #workspace {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #paperStage {
+    width: 100%;
+    height: 100%;
+    border: 1px dashed var(--panel-border);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    position: relative;
+    min-height: 220px;
+    overflow: hidden;
+  }
+
+  #paperCanvas {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    touch-action: none;
+    cursor: grab;
+  }
+
+  #paperCanvas.dragging {
+    cursor: grabbing;
+  }
+
+  #canvasTextEditor {
+    position: absolute;
+    z-index: 15;
+    display: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    background: transparent;
+    font: inherit;
+    color: var(--fg);
+    caret-color: currentColor;
+    line-height: 1.36;
+    white-space: pre-wrap;
+  }
+
+  #canvasTextEditor.show {
+    display: block;
+  }
+
+  #canvasTextEditor::placeholder {
+    color: rgba(48, 39, 29, 0.38);
+  }
+
+  body.dark #canvasTextEditor::placeholder {
+    color: rgba(238, 226, 208, 0.4);
+  }
+
+  #sidePanel {
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 10px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 10px;
+    overflow: hidden;
+    transform: none;
+    opacity: 1;
+    transition: transform 0.28s ease, opacity 0.22s ease;
+  }
+
+  #app.panel-collapsed #sidePanel {
+    transform: translateX(108%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #panelEdgeToggle {
+    position: fixed;
+    z-index: 50;
+    width: 34px;
+    height: 66px;
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--fg);
+    box-shadow: var(--shadow);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition: background 0.18s ease;
+  }
+
+  #panelEdgeToggle:hover {
+    background: var(--btn-hover);
+  }
+
+  .tabs {
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .tab-btn,
+  .tiny-btn,
+  .download-main,
+  .format-btn,
+  .utility-btn {
+    border: none;
+    background: var(--btn);
+    color: var(--fg);
+    border-radius: 8px;
+    font: inherit;
+    cursor: pointer;
+    text-transform: lowercase;
+  }
+
+  .tab-btn {
+    padding: 8px 6px;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+  }
+
+  .tab-btn:hover,
+  .tiny-btn:hover,
+  .download-main:hover,
+  .format-btn:hover,
+  .utility-btn:hover {
+    background: var(--btn-hover);
+  }
+
+  .tab-btn.active {
+    background: var(--btn-hover);
+  }
+
+  #sections {
+    min-height: 0;
+    overflow-y: auto;
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .section {
+    display: none;
+    gap: 10px;
+  }
+
+  .section.active {
+    display: grid;
+  }
+
+  .section[data-section-panel="text"].active {
+    min-height: 100%;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .sub-title {
+    font-size: 10px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  select,
+  input[type="number"],
+  input[type="text"],
+  input[type="color"],
+  textarea,
+  input[type="range"] {
+    width: 100%;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.46);
+    color: var(--fg);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  body.dark select,
+  body.dark input[type="number"],
+  body.dark input[type="text"],
+  body.dark input[type="color"],
+  body.dark textarea,
+  body.dark input[type="range"] {
+    background: rgba(19, 18, 16, 0.64);
+  }
+
+  select,
+  input[type="number"],
+  input[type="text"] {
+    padding: 8px;
+  }
+
+  textarea {
+    min-height: 120px;
+    resize: vertical;
+    padding: 10px;
+    line-height: 1.35;
+  }
+
+  input[type="color"] {
+    height: 34px;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  input[type="range"] {
+    height: 28px;
+    padding: 0 5px;
+    accent-color: var(--accent);
+  }
+
+  input[type="checkbox"] {
+    accent-color: var(--accent);
+  }
+
+  .row {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tiny-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .tiny-btn.active {
+    background: var(--btn-hover);
+    outline: 1.5px solid var(--accent);
+    outline-offset: -1px;
+  }
+
+  .info {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .text-list {
+    display: grid;
+    gap: 8px;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .text-item {
+    display: grid;
+    gap: 8px;
+    border: 1px solid var(--panel-border);
+    border-radius: 9px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.34);
+  }
+
+  body.dark .text-item {
+    background: rgba(19, 18, 16, 0.56);
+  }
+
+  .text-item.active {
+    outline: 1.5px solid var(--accent);
+    outline-offset: -1px;
+  }
+
+  .text-item textarea {
+    min-height: 86px;
+  }
+
+  .text-item-controls {
+    display: grid;
+    gap: 8px;
+  }
+
+  .text-item-top-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .align-cycle-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .text-color-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    background: var(--btn);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .text-color-panel {
+    display: none;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.34);
+    padding: 8px;
+  }
+
+  body.dark .text-color-panel {
+    background: rgba(19, 18, 16, 0.56);
+  }
+
+  .text-color-panel.show {
+    display: block;
+  }
+
+  .box-color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .box-custom-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+  }
+
+  .box-custom-swatch.inactive {
+    background: #ffffff !important;
+    position: relative;
+  }
+
+  .box-custom-swatch.inactive::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 11px;
+    height: 2px;
+    background: #c73737;
+    transform: rotate(-45deg);
+    border-radius: 999px;
+  }
+
+  .text-line-spacing label,
+  .text-font-wrap label {
+    margin-bottom: 3px;
+  }
+
+  .text-item-font-name {
+    font-size: 14px;
+    letter-spacing: 0.01em;
+    min-height: 34px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .text-remove-btn {
+    justify-self: end;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    background: var(--btn);
+    color: var(--fg);
+    font: inherit;
+    line-height: 1;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  .text-remove-btn:hover {
+    background: var(--btn-hover);
+  }
+
+  .align-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .align-btn {
+    border: 1px solid var(--panel-border);
+    background: var(--btn);
+    color: var(--fg);
+    border-radius: 8px;
+    height: 36px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .align-btn:hover {
+    background: var(--btn-hover);
+  }
+
+  .align-btn.active {
+    background: var(--btn-hover);
+    outline: 1.5px solid var(--accent);
+    outline-offset: -1px;
+  }
+
+  .align-icon {
+    width: 18px;
+    height: 13px;
+    display: block;
+    position: relative;
+    opacity: 0.9;
+  }
+
+  .align-icon::before,
+  .align-icon::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: currentColor;
+    border-radius: 999px;
+  }
+
+  .align-icon::before {
+    top: 2px;
+  }
+
+  .align-icon::after {
+    bottom: 2px;
+  }
+
+  .align-icon.left {
+    border-left: 2px solid currentColor;
+  }
+
+  .align-icon.left::before {
+    width: 16px;
+    left: 0;
+    right: auto;
+  }
+
+  .align-icon.left::after {
+    width: 12px;
+    left: 0;
+    right: auto;
+  }
+
+  .align-icon.center::before {
+    width: 16px;
+    left: 1px;
+    right: auto;
+  }
+
+  .align-icon.center::after {
+    width: 12px;
+    left: 3px;
+    right: auto;
+  }
+
+  .align-icon.right {
+    border-right: 2px solid currentColor;
+  }
+
+  .align-icon.right::before {
+    width: 16px;
+    right: 0;
+    left: auto;
+  }
+
+  .align-icon.right::after {
+    width: 12px;
+    right: 0;
+    left: auto;
+  }
+
+  .texture-row,
+  .mark-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .texture-name {
+    text-align: center;
+    font-size: 12px;
+    color: var(--fg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.34);
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  body.dark .texture-name {
+    background: rgba(19, 18, 16, 0.56);
+  }
+
+  #paperName {
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .paper-chip {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--panel-border);
+    display: inline-block;
+    flex: 0 0 auto;
+  }
+
+  .paper-custom-row {
+    display: grid;
+    gap: 4px;
+  }
+
+  .paper-custom-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .paper-custom-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+  }
+
+  .paper-custom-swatch {
+    width: 28px;
+    height: 28px;
+  }
+
+  .mark-row {
+    grid-template-columns: auto auto auto;
+    justify-content: center;
+  }
+
+  .mark-preview-btn {
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    cursor: grab;
+    width: 120px;
+    height: 86px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mark-preview-btn:hover {
+    filter: brightness(0.96);
+  }
+
+  .mark-preview-btn:active {
+    cursor: grabbing;
+  }
+
+  #markPreview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  #markPreview.flipped {
+    transform: scaleY(-1);
+  }
+
+  .canvas-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .canvas-preset-btn {
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.34);
+    color: var(--fg);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    min-height: 58px;
+    padding: 7px 8px;
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+  }
+
+  body.dark .canvas-preset-btn {
+    background: rgba(19, 18, 16, 0.56);
+  }
+
+  .canvas-preset-btn:hover {
+    background: var(--btn-hover);
+  }
+
+  .canvas-preset-btn.active {
+    outline: 1.5px solid var(--accent);
+    outline-offset: -1px;
+    background: var(--btn-hover);
+  }
+
+  .canvas-preset-icon {
+    width: 34px;
+    height: 26px;
+    border: 1px solid rgba(92, 72, 42, 0.45);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.62);
+  }
+
+  body.dark .canvas-preset-icon {
+    border-color: rgba(226, 206, 176, 0.34);
+    background: rgba(26, 24, 20, 0.65);
+  }
+
+  .canvas-preset-shape {
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    opacity: 0.85;
+  }
+
+  .canvas-preset-icon.custom {
+    font-size: 15px;
+    line-height: 1;
+    font-weight: 600;
+  }
+
+  .canvas-preset-label {
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  #markCanvasColorPicker {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--panel-border);
+    border-radius: 50%;
+    padding: 0;
+    background: transparent;
+    z-index: 16;
+    display: none;
+  }
+
+  #textCanvasAlignHud {
+    position: absolute;
+    display: none;
+    gap: 4px;
+    grid-template-columns: repeat(3, 30px);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: var(--shadow);
+    z-index: 17;
+  }
+
+  #textCanvasAlignHud.show {
+    display: grid;
+  }
+
+  #textCanvasAlignHud .align-btn {
+    height: 28px;
+  }
+
+  .ink-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.26);
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+  }
+
+  body.dark .ink-swatch {
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+
+  .ink-swatch.active::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .panel-bottom {
+    display: grid;
+    gap: 8px;
+    border-top: 1px solid var(--panel-border);
+    padding-top: 8px;
+  }
+
+  .export-row {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr;
+  }
+
+  .download-main {
+    padding: 12px 12px;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    border-radius: 10px;
+    background: rgba(75, 60, 35, 0.2);
+  }
+
+  body.dark .download-main {
+    background: rgba(229, 207, 175, 0.17);
+  }
+
+  .download-main:hover {
+    background: rgba(75, 60, 35, 0.3);
+  }
+
+  body.dark .download-main:hover {
+    background: rgba(229, 207, 175, 0.25);
+  }
+
+  .format-row {
+    display: none;
+    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .format-row.open {
+    display: grid;
+  }
+
+  .format-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .utility-row {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .utility-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .panel-footer {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  .panel-footer a {
+    color: var(--fg);
+    opacity: 0.78;
+    text-decoration: none;
+  }
+
+  .panel-footer a:hover {
+    opacity: 1;
+  }
+
+  @media (max-width: 1040px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      padding: 0 8px 8px;
+    }
+
+    #sidePanel {
+      position: fixed;
+      right: 8px;
+      top: 56px;
+      bottom: 8px;
+      width: calc(100vw - 16px);
+      z-index: 40;
+    }
+
+    #app.panel-collapsed #sidePanel {
+      transform: translateX(108%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #paperStage {
+      height: calc(100vh - 74px);
+    }
+
+    .tabs {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="title">typedup</div>
+  </header>
+
+  <div class="layout">
+    <main id="workspace">
+      <div id="paperStage">
+        <canvas id="paperCanvas" width="1080" height="1080" tabindex="0" aria-label="typedup canvas"></canvas>
+        <textarea id="canvasTextEditor" spellcheck="false" aria-label="canvas text editor"></textarea>
+        <input id="markCanvasColorPicker" type="color" aria-label="mark color picker">
+        <div id="textCanvasAlignHud" aria-label="text alignment on canvas">
+          <button type="button" class="align-btn" data-align="left" aria-label="align left">
+            <span class="align-icon left"></span>
+          </button>
+          <button type="button" class="align-btn" data-align="center" aria-label="align center">
+            <span class="align-icon center"></span>
+          </button>
+          <button type="button" class="align-btn" data-align="right" aria-label="align right">
+            <span class="align-icon right"></span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <aside id="sidePanel" aria-label="typedup options">
+      <nav class="tabs" aria-label="option sections">
+        <button class="tab-btn active" data-section="text">text</button>
+        <button class="tab-btn" data-section="paper">paper</button>
+        <button class="tab-btn" data-section="effects">effects</button>
+        <button class="tab-btn" data-section="marks">marks</button>
+      </nav>
+
+      <div id="sections">
+        <section class="section active" data-section-panel="text">
+          <div class="section-title">text</div>
+          <div id="textList" class="text-list" aria-label="text boxes"></div>
+          <button id="addTextBoxBtn" class="tiny-btn" aria-label="add text box">+</button>
+        </section>
+
+        <section class="section" data-section-panel="paper">
+          <div class="section-title">paper</div>
+          <div class="sub-title">canvas</div>
+          <div>
+            <div id="canvasPresetGrid" class="canvas-preset-grid" role="listbox" aria-label="canvas presets"></div>
+          </div>
+          <div id="customCanvasFields" class="hidden">
+            <div class="row">
+              <div>
+                <label for="canvasWidth">width</label>
+                <input id="canvasWidth" type="number" min="300" max="5000" step="1" value="1080">
+              </div>
+              <div>
+                <label for="canvasHeight">height</label>
+                <input id="canvasHeight" type="number" min="300" max="7000" step="1" value="1080">
+              </div>
+            </div>
+            <button id="applyCanvasSize" class="tiny-btn">apply custom size</button>
+          </div>
+
+          <div class="sub-title">paper</div>
+          <div>
+            <label>paper color</label>
+            <div class="texture-row">
+              <button id="paperPrev" class="tiny-btn" aria-label="previous paper color">&#10094;</button>
+              <div id="paperName" class="texture-name">
+                <span id="paperChip" class="paper-chip"></span>
+                <span id="paperLabel">ivory white</span>
+              </div>
+              <button id="paperNext" class="tiny-btn" aria-label="next paper color">&#10095;</button>
+            </div>
+          </div>
+          <div>
+            <div class="paper-custom-row">
+              <label>custom</label>
+              <div class="paper-custom-wrap">
+                <button id="paperCustomToggle" class="ink-swatch box-custom-swatch paper-custom-swatch inactive" type="button" aria-label="choose custom paper color"></button>
+                <input id="paperCustom" class="paper-custom-input" type="color" value="#f8f5ea" aria-label="custom paper color">
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label>texture</label>
+            <div class="texture-row">
+              <button id="texturePrev" class="tiny-btn" aria-label="previous texture">&#10094;</button>
+              <div id="textureName" class="texture-name">no texture</div>
+              <button id="textureNext" class="tiny-btn" aria-label="next texture">&#10095;</button>
+            </div>
+          </div>
+
+          <div id="textureIntensityWrap" class="hidden">
+            <label for="textureAlpha">texture intensity</label>
+            <input id="textureAlpha" type="range" min="0" max="100" step="1" value="45">
+          </div>
+        </section>
+
+        <section class="section" data-section-panel="effects">
+          <div class="section-title">effects</div>
+
+          <div>
+            <label for="doubleAmount">double-typed amount</label>
+            <div>
+              <input id="doubleAmount" type="range" min="0" max="100" step="1" value="10">
+            </div>
+          </div>
+
+          <div>
+            <label>faded letters</label>
+            <div class="row">
+              <div>
+                <label for="fadeAmount">amount</label>
+                <input id="fadeAmount" type="range" min="0" max="100" step="1" value="10">
+              </div>
+              <div>
+                <label for="fadeOpacity">opacity</label>
+                <input id="fadeOpacity" type="range" min="5" max="100" step="1" value="80">
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label for="jogAmount">line jog amount</label>
+            <div>
+              <input id="jogAmount" type="range" min="0" max="100" step="1" value="10">
+            </div>
+          </div>
+          <label class="info" for="jogMidline" style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;">
+            <input id="jogMidline" type="checkbox" checked style="width:auto;height:auto;">
+            mid-line jogs
+          </label>
+          <div>
+            <label for="blurAmount">blur</label>
+            <div>
+              <input id="blurAmount" type="range" min="0" max="100" step="1" value="5">
+            </div>
+          </div>
+          <div>
+            <label class="info" for="vignetteEnabled" style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;">
+              <input id="vignetteEnabled" type="checkbox" style="width:auto;height:auto;">
+              vignette
+            </label>
+          </div>
+          <div id="vignetteAmountWrap" class="hidden">
+            <label for="vignetteAmount">vignette amount</label>
+            <input id="vignetteAmount" type="range" min="0" max="100" step="1" value="35">
+          </div>
+          <button id="effectsShuffle" class="tiny-btn">shuffle which letters and lines are affected</button>
+        </section>
+
+        <section class="section" data-section-panel="marks">
+          <div class="section-title">ink &amp; marks</div>
+
+          <button id="addRandomMarkBtn" class="tiny-btn">random</button>
+          <div class="mark-row">
+            <button id="markPrev" class="tiny-btn" aria-label="previous mark">&#10094;</button>
+            <button id="markName" class="mark-preview-btn" type="button" draggable="true" aria-label="add selected mark by click or drag">
+              <img id="markPreview" alt="mark preview" draggable="false">
+            </button>
+            <button id="markNext" class="tiny-btn" aria-label="next mark">&#10095;</button>
+          </div>
+          <button id="markFlipBtn" class="tiny-btn" type="button">flip vertical</button>
+          <button id="deleteAllMarksBtn" class="tiny-btn">delete all marks</button>
+        </section>
+      </div>
+
+      <div class="panel-bottom">
+        <div class="export-row">
+          <button id="downloadMain" class="download-main">download</button>
+        </div>
+
+        <div id="formatRow" class="format-row">
+          <button class="format-btn" data-format="png">png</button>
+          <button class="format-btn" data-format="jpeg">jpeg</button>
+          <button class="format-btn" data-format="pdf">pdf</button>
+        </div>
+
+        <div class="utility-row">
+          <button id="themeToggle" class="utility-btn">dark mode</button>
+          <button id="shareBtn" class="utility-btn">share</button>
+          <button id="projectsBtn" class="utility-btn">other projects</button>
+        </div>
+
+        <div class="panel-footer">
+          <a href="https://buymeacoffee.com/samiainstevens" target="_blank" rel="noopener">buy me a coffee</a><br>
+          <a href="https://www.samiainstevens.com" target="_blank" rel="noopener">&copy; sam stevens 2026</a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<button id="panelEdgeToggle" aria-label="toggle panel">&#10095;</button>
+
+<script>
+(() => {
+  'use strict';
+
+  const textureOptions = [
+    { id: 'none', label: 'no texture', src: null },
+    { id: '1', label: 'paper 1', src: 'paper textures/4.jpg' },
+    { id: '2', label: 'paper 2', src: 'paper textures/2.jpg' },
+    { id: '3', label: 'paper 3', src: 'paper textures/3.jpg' },
+    { id: '4', label: 'paper 4', src: 'paper textures/1.jpg' },
+    { id: '5', label: 'paper 5', src: 'paper textures/5.jpg' },
+    { id: '6', label: 'paper 6', src: 'paper textures/6.jpg' },
+    { id: '7', label: 'paper 7', src: 'paper textures/7.jpg' },
+    { id: '8', label: 'paper 8', src: 'paper textures/8.jpg' },
+    { id: '9', label: 'paper 9', src: 'paper textures/9.jpg' },
+    { id: '10', label: 'paper 10', src: 'paper textures/10.jpg' },
+    { id: '11', label: 'paper 11', src: 'paper textures/11.jpg' },
+    { id: '12', label: 'paper 12', src: 'paper textures/12.jpg' }
+  ];
+
+  const markOptions = [
+    { label: '1', src: 'effects/effect1.png' },
+    { label: '2', src: 'effects/effect2.png' },
+    { label: '3', src: 'effects/effect3.png' },
+    { label: '4', src: 'effects/effect4.png' },
+    { label: '5', src: 'effects/effect5.png' },
+    { label: '6', src: 'effects/effect6.png' },
+    { label: '7', src: 'effects/effect7.png' },
+    { label: '8', src: 'effects/effect8.png' }
+  ];
+
+  const fontOptions = [
+    { label: 'Carbon Type', value: '"Carbon Type"' },
+    { label: 'Stamp', value: '"Stamp"' },
+    { label: 'Uncle Typewriter', value: '"Uncle Typewriter"' },
+    { label: 'Another Typewriter', value: '"Another Typewriter"' },
+    { label: 'Draconian Typewriter', value: '"Draconian Typewriter"' },
+    { label: 'Junkos Typewriter', value: '"Junkos Typewriter"' },
+    { label: 'Kingthings Trypewriter', value: '"Kingthings Trypewriter"' },
+    { label: 'Veteran Typewriter', value: '"Veteran Typewriter"' },
+    { label: '1942 Report', value: '"1942 Report"' },
+    { label: 'Old Newspaper', value: '"Old Newspaper"' }
+  ];
+
+  const paperOptions = [
+    { label: 'warm cream', value: '#f3ecdf' },
+    { label: 'ivory white', value: '#f8f5ea' },
+    { label: 'aged tan', value: '#e7dac2' },
+    { label: 'soft gray', value: '#e3dfd5' },
+    { label: 'mint paper', value: '#dce7d6' },
+    { label: 'pale blue', value: '#d9e3e8' },
+    { label: 'charcoal sheet', value: '#2e2a24' }
+  ];
+
+  const sizePresets = [
+    { label: 'instagram square', value: '1080x1080' },
+    { label: 'instagram portrait', value: '1080x1350' },
+    { label: 'story / reel', value: '1080x1920' },
+    { label: 'a4 portrait', value: '2480x3508' },
+    { label: 'a4 landscape', value: '3508x2480' },
+    { label: 'custom', value: 'custom' }
+  ];
+
+  const inkPalette = [
+    '#111111',
+    '#1e2f49',
+    '#6b2128',
+    '#2f4b37',
+    '#4b3628',
+    '#483656',
+    '#505050',
+    '#9a2f2f'
+  ];
+
+  const defaultText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit...';
+  const textPadding = 14;
+  const textBoxMinW = 140;
+  const textBoxMinH = 90;
+  const maxTextBoxes = 10;
+  const maxMarks = 10;
+  const alignmentOrder = ['left', 'center', 'right'];
+  const markMinW = 32;
+  const markMinH = 32;
+  const markMinVisible = 24;
+  const handleSize = 12;
+  const rotateHandleDistance = 28;
+  const closeHandleDistance = 16;
+  const snapThreshold = 12;
+  const editClickThreshold = 3;
+
+  const els = {
+    app: document.getElementById('app'),
+    body: document.body,
+    sidePanel: document.getElementById('sidePanel'),
+    panelEdgeToggle: document.getElementById('panelEdgeToggle'),
+
+    canvas: document.getElementById('paperCanvas'),
+    paperStage: document.getElementById('paperStage'),
+    canvasTextEditor: document.getElementById('canvasTextEditor'),
+    markCanvasColorPicker: document.getElementById('markCanvasColorPicker'),
+    textCanvasAlignHud: document.getElementById('textCanvasAlignHud'),
+    canvasAlignButtons: Array.from(document.querySelectorAll('#textCanvasAlignHud .align-btn')),
+
+    tabs: Array.from(document.querySelectorAll('.tab-btn')),
+    sections: Array.from(document.querySelectorAll('[data-section-panel]')),
+
+    textList: document.getElementById('textList'),
+    addTextBoxBtn: document.getElementById('addTextBoxBtn'),
+
+    canvasPresetGrid: document.getElementById('canvasPresetGrid'),
+    customCanvasFields: document.getElementById('customCanvasFields'),
+    canvasWidth: document.getElementById('canvasWidth'),
+    canvasHeight: document.getElementById('canvasHeight'),
+    applyCanvasSize: document.getElementById('applyCanvasSize'),
+
+    paperPrev: document.getElementById('paperPrev'),
+    paperNext: document.getElementById('paperNext'),
+    paperName: document.getElementById('paperName'),
+    paperChip: document.getElementById('paperChip'),
+    paperLabel: document.getElementById('paperLabel'),
+    paperCustomToggle: document.getElementById('paperCustomToggle'),
+    paperCustom: document.getElementById('paperCustom'),
+    texturePrev: document.getElementById('texturePrev'),
+    textureNext: document.getElementById('textureNext'),
+    textureName: document.getElementById('textureName'),
+    textureIntensityWrap: document.getElementById('textureIntensityWrap'),
+    textureAlpha: document.getElementById('textureAlpha'),
+
+    doubleAmount: document.getElementById('doubleAmount'),
+    fadeAmount: document.getElementById('fadeAmount'),
+    fadeOpacity: document.getElementById('fadeOpacity'),
+    jogAmount: document.getElementById('jogAmount'),
+    jogMidline: document.getElementById('jogMidline'),
+    blurAmount: document.getElementById('blurAmount'),
+    vignetteEnabled: document.getElementById('vignetteEnabled'),
+    vignetteAmountWrap: document.getElementById('vignetteAmountWrap'),
+    vignetteAmount: document.getElementById('vignetteAmount'),
+    effectsShuffle: document.getElementById('effectsShuffle'),
+
+    markPrev: document.getElementById('markPrev'),
+    markNext: document.getElementById('markNext'),
+    markName: document.getElementById('markName'),
+    markPreview: document.getElementById('markPreview'),
+    addRandomMarkBtn: document.getElementById('addRandomMarkBtn'),
+    markFlipBtn: document.getElementById('markFlipBtn'),
+    deleteAllMarksBtn: document.getElementById('deleteAllMarksBtn'),
+
+    downloadMain: document.getElementById('downloadMain'),
+    formatRow: document.getElementById('formatRow'),
+    formatBtns: Array.from(document.querySelectorAll('.format-btn')),
+
+    themeToggle: document.getElementById('themeToggle'),
+    shareBtn: document.getElementById('shareBtn'),
+    projectsBtn: document.getElementById('projectsBtn')
+  };
+
+  const ctx = els.canvas.getContext('2d');
+
+  const state = {
+    panelOpen: true,
+    activeSection: 'text',
+    darkMode: false,
+    exporting: false,
+
+    width: 1080,
+    height: 1080,
+    canvasPresetValue: '1080x1080',
+
+    fontIndex: 0,
+    font: fontOptions[0].value,
+    lineHeight: 1.36,
+    inkColor: inkPalette[0],
+
+    textBoxes: [],
+    textBoxCounter: 0,
+    selectedTextBoxId: null,
+    openTextColorBoxId: null,
+    showTextUi: true,
+    textEditing: false,
+    canvasEditor: {
+      active: false,
+      boxId: null
+    },
+
+    snap: { x: false, y: false },
+
+    paperIndex: 1,
+    paperColor: paperOptions[1].value,
+    paperIsCustom: false,
+    textureIndex: 0,
+    textureBlend: 0.45,
+
+    effects: {
+      doubleAmount: 0.10,
+      fadeAmount: 0.10,
+      fadeOpacity: 0.80,
+      jogAmount: 0.10,
+      jogMidline: true,
+      blurAmount: 5,
+      vignetteEnabled: false,
+      vignetteAmount: 0.35,
+      doubleSeed: seed(),
+      fadeSeed: seed(),
+      jogSeed: seed()
+    },
+
+    marks: [],
+    selectedMarkId: null,
+    markSourceIndex: 0,
+    defaultMarkFlipY: false,
+    draggingMarkSource: null,
+
+    interaction: {
+      mode: 'none',
+      pointerId: null,
+      targetId: null,
+      handle: null,
+      startX: 0,
+      startY: 0,
+      startRect: null,
+      startAngle: 0,
+      startRotation: 0,
+      startLocalX: 0,
+      startLocalY: 0,
+      moved: false
+    }
+  };
+
+  const textureCache = new Map();
+  const markCache = new Map();
+  const fontLoadCache = new Map();
+
+  function seed() {
+    return (Math.random() * 0x7fffffff) | 0;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function hash01(base, a, b, c) {
+    let h = base | 0;
+    h = Math.imul(h ^ (a + 0x7feb352d), 0x846ca68b);
+    h = Math.imul(h ^ (b + 0x6c8e9cf5), 0x5bd1e995);
+    h = Math.imul(h ^ (c + 0x4f1bbcdc), 0x27d4eb2d);
+    h ^= h >>> 15;
+    return ((h >>> 0) / 4294967295);
+  }
+
+  function rotatePoint(x, y, cx, cy, angle) {
+    const dx = x - cx;
+    const dy = y - cy;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return {
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    };
+  }
+
+  function unrotatePoint(point, cx, cy, angle) {
+    return rotatePoint(point.x, point.y, cx, cy, -angle);
+  }
+
+  function snapRightAngle(angle, threshold = Math.PI / 24) {
+    const quarterTurn = Math.PI / 2;
+    const snapped = Math.round(angle / quarterTurn) * quarterTurn;
+    if (Math.abs(angle - snapped) <= threshold) {
+      return snapped;
+    }
+    return angle;
+  }
+
+  function rectCenter(rect) {
+    return { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
+  }
+
+  function distance(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function pointInRotatedRect(point, rect, rotation) {
+    const center = rectCenter(rect);
+    const local = unrotatePoint(point, center.x, center.y, rotation);
+    return local.x >= rect.x && local.x <= rect.x + rect.w && local.y >= rect.y && local.y <= rect.y + rect.h;
+  }
+
+  function getTexture() {
+    return textureOptions[state.textureIndex] || textureOptions[0];
+  }
+
+  function loadTexture(index) {
+    const texture = textureOptions[index];
+    if (!texture || !texture.src) {
+      return null;
+    }
+
+    if (textureCache.has(texture.src)) {
+      return textureCache.get(texture.src);
+    }
+
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = texture.src;
+    image.onload = () => render();
+    textureCache.set(texture.src, image);
+    return image;
+  }
+
+  function loadMarkImage(index) {
+    const mark = markOptions[index];
+    if (!mark || !mark.src) {
+      return null;
+    }
+
+    if (markCache.has(mark.src)) {
+      return markCache.get(mark.src);
+    }
+
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = mark.src;
+    image.onload = () => render();
+    markCache.set(mark.src, image);
+    return image;
+  }
+
+  function ensureFontLoaded(fontValue) {
+    if (!fontValue || !document.fonts || typeof document.fonts.load !== 'function') {
+      return Promise.resolve(false);
+    }
+
+    if (fontLoadCache.has(fontValue)) {
+      return fontLoadCache.get(fontValue);
+    }
+
+    const promise = Promise.all([
+      document.fonts.load(`18px ${fontValue}`),
+      document.fonts.load(`36px ${fontValue}`),
+      document.fonts.load(`72px ${fontValue}`)
+    ]).then(() => true).catch(() => false);
+
+    fontLoadCache.set(fontValue, promise);
+    return promise;
+  }
+
+  function warmFontLoads() {
+    const queue = fontOptions.map((option) => option.value);
+    let index = 0;
+
+    const tick = () => {
+      if (index >= queue.length) {
+        return;
+      }
+      ensureFontLoaded(queue[index]);
+      index += 1;
+      window.setTimeout(tick, 75);
+    };
+
+    tick();
+  }
+
+  function updateTextureLabel() {
+    els.textureName.textContent = getTexture().label;
+  }
+
+  function updateTextureControlsVisibility() {
+    const texture = getTexture();
+    const hasTexture = Boolean(texture && texture.src);
+    els.textureIntensityWrap.classList.toggle('hidden', !hasTexture);
+    els.textureAlpha.disabled = !hasTexture;
+  }
+
+  function updateCanvasPresetUi() {
+    const custom = state.canvasPresetValue === 'custom';
+    els.customCanvasFields.classList.toggle('hidden', !custom);
+  }
+
+  function renderCanvasPresetButtons() {
+    if (!els.canvasPresetGrid) {
+      return;
+    }
+
+    els.canvasPresetGrid.innerHTML = '';
+    for (const preset of sizePresets) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `canvas-preset-btn${state.canvasPresetValue === preset.value ? ' active' : ''}`;
+      btn.dataset.value = preset.value;
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('aria-selected', state.canvasPresetValue === preset.value ? 'true' : 'false');
+      btn.setAttribute('aria-label', preset.label);
+
+      const icon = document.createElement('span');
+      icon.className = 'canvas-preset-icon';
+
+      if (preset.value === 'custom') {
+        icon.classList.add('custom');
+        icon.textContent = '+';
+      } else {
+        const [w, h] = preset.value.split('x').map(Number);
+        const longest = Math.max(w || 1, h || 1);
+        const shape = document.createElement('span');
+        shape.className = 'canvas-preset-shape';
+        shape.style.width = `${Math.max(8, Math.round(((w || 1) / longest) * 22))}px`;
+        shape.style.height = `${Math.max(8, Math.round(((h || 1) / longest) * 22))}px`;
+        icon.appendChild(shape);
+      }
+
+      const label = document.createElement('span');
+      label.className = 'canvas-preset-label';
+      label.textContent = preset.label;
+
+      btn.appendChild(icon);
+      btn.appendChild(label);
+
+      btn.addEventListener('click', () => {
+        state.canvasPresetValue = preset.value;
+        renderCanvasPresetButtons();
+        updateCanvasPresetUi();
+        handlePresetChange(preset.value);
+      });
+
+      els.canvasPresetGrid.appendChild(btn);
+    }
+  }
+
+  function updatePaperCustomUi() {
+    if (!els.paperCustomToggle) {
+      return;
+    }
+    const isCustom = Boolean(state.paperIsCustom);
+    els.paperCustomToggle.classList.toggle('active', isCustom);
+    els.paperCustomToggle.classList.toggle('inactive', !isCustom);
+    els.paperCustomToggle.style.background = isCustom ? state.paperColor : '#ffffff';
+  }
+
+  function updatePaperDisplay(labelOverride = null, colorOverride = null) {
+    const option = paperOptions[state.paperIndex] || paperOptions[0];
+    const label = labelOverride || (state.paperIsCustom ? 'custom' : option.label);
+    const color = colorOverride || state.paperColor;
+    els.paperLabel.textContent = label;
+    els.paperChip.style.background = color;
+    updatePaperCustomUi();
+  }
+
+  function setPaperIndex(nextIndex) {
+    const total = paperOptions.length;
+    state.paperIndex = ((nextIndex % total) + total) % total;
+    const option = paperOptions[state.paperIndex];
+    state.paperColor = option.value;
+    state.paperIsCustom = false;
+    els.paperCustom.value = option.value;
+    updatePaperDisplay();
+    render();
+  }
+
+  function updateMarkSourceDisplay() {
+    const source = markOptions[state.markSourceIndex];
+    if (!source) {
+      els.markPreview.removeAttribute('src');
+      return;
+    }
+    els.markPreview.src = source.src;
+    updateMarkFlipUi();
+  }
+
+  function updateVignetteControlsVisibility() {
+    const enabled = Boolean(state.effects.vignetteEnabled);
+    els.vignetteAmountWrap.classList.toggle('hidden', !enabled);
+    els.vignetteAmount.disabled = !enabled;
+  }
+
+  function updateMarkFlipUi() {
+    const selectedMark = getMarkById(state.selectedMarkId);
+    const active = selectedMark ? Boolean(selectedMark.flipY) : Boolean(state.defaultMarkFlipY);
+    els.markFlipBtn.classList.toggle('active', active);
+    els.markPreview.classList.toggle('flipped', active);
+  }
+
+  function updateTextCanvasAlignHud() {
+    if (state.exporting || state.selectedMarkId || !state.showTextUi) {
+      els.textCanvasAlignHud.classList.remove('show');
+      return;
+    }
+
+    const box = getSelectedTextBox();
+    if (!box) {
+      els.textCanvasAlignHud.classList.remove('show');
+      return;
+    }
+
+    const controls = getTextControls(box);
+    const canvasRect = els.canvas.getBoundingClientRect();
+    const stageRect = els.paperStage.getBoundingClientRect();
+    const hudW = 106;
+    const hudH = 38;
+    const x = canvasRect.left + (controls.bottomCenter.x / state.width) * canvasRect.width - stageRect.left - hudW / 2;
+    const y = canvasRect.top + (controls.bottomCenter.y / state.height) * canvasRect.height - stageRect.top + 14;
+    const clampedX = clamp(x, 0, Math.max(0, stageRect.width - hudW));
+    const clampedY = clamp(y, 0, Math.max(0, stageRect.height - hudH));
+
+    els.textCanvasAlignHud.style.left = `${clampedX}px`;
+    els.textCanvasAlignHud.style.top = `${clampedY}px`;
+    els.textCanvasAlignHud.classList.add('show');
+
+    const align = box.align || 'left';
+    for (const btn of els.canvasAlignButtons) {
+      btn.classList.toggle('active', btn.dataset.align === align);
+    }
+  }
+
+  function updateCanvasTextEditor() {
+    if (state.exporting || !state.canvasEditor.active || state.selectedMarkId) {
+      hideCanvasTextEditor();
+      return;
+    }
+
+    const box = getTextBoxById(state.canvasEditor.boxId);
+    if (!box || !state.showTextUi) {
+      hideCanvasTextEditor();
+      return;
+    }
+    ensureTextBoxStyle(box);
+
+    const canvasRect = els.canvas.getBoundingClientRect();
+    const stageRect = els.paperStage.getBoundingClientRect();
+    const scaleX = canvasRect.width / Math.max(1, state.width);
+    const scaleY = canvasRect.height / Math.max(1, state.height);
+    if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
+      hideCanvasTextEditor();
+      return;
+    }
+
+    const layout = layoutTextForBox(box, getBoxFontSize(box), box.text || '');
+    const verticalOffset = Math.max(0, (layout.contentHeight - layout.totalHeight) * 0.5);
+    const editor = els.canvasTextEditor;
+    const left = canvasRect.left - stageRect.left + box.x * scaleX;
+    const top = canvasRect.top - stageRect.top + box.y * scaleY;
+    const width = box.w * scaleX;
+    const height = box.h * scaleY;
+    const scaledPaddingX = Math.max(1, textPadding * scaleX);
+    const scaledPaddingBottom = Math.max(1, textPadding * scaleY);
+    const scaledPaddingTop = Math.max(1, (textPadding + verticalOffset) * scaleY);
+    const scaledFontSize = Math.max(1, getBoxFontSize(box) * ((scaleX + scaleY) / 2));
+
+    editor.style.left = `${left}px`;
+    editor.style.top = `${top}px`;
+    editor.style.width = `${Math.max(6, width)}px`;
+    editor.style.height = `${Math.max(6, height)}px`;
+    editor.style.fontFamily = box.font || state.font;
+    editor.style.fontSize = `${scaledFontSize}px`;
+    editor.style.lineHeight = String(box.lineHeight || state.lineHeight);
+    editor.style.padding = `${scaledPaddingTop}px ${scaledPaddingX}px ${scaledPaddingBottom}px ${scaledPaddingX}px`;
+    editor.style.textAlign = box.align || 'left';
+    editor.style.color = box.inkColor || state.inkColor;
+    editor.style.transformOrigin = '50% 50%';
+    editor.style.transform = `rotate(${box.rotation}rad)`;
+    editor.placeholder = defaultText;
+    if (editor.value !== box.text) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      editor.value = box.text;
+      if (document.activeElement === editor && Number.isFinite(start) && Number.isFinite(end)) {
+        const max = editor.value.length;
+        editor.setSelectionRange(clamp(start, 0, max), clamp(end, 0, max));
+      }
+    }
+    editor.classList.add('show');
+  }
+
+  function setActiveSection(sectionName) {
+    state.activeSection = sectionName;
+    for (const tab of els.tabs) {
+      tab.classList.toggle('active', tab.dataset.section === sectionName);
+    }
+    for (const section of els.sections) {
+      section.classList.toggle('active', section.dataset.sectionPanel === sectionName);
+    }
+  }
+
+  function positionPanelEdgeToggle() {
+    els.panelEdgeToggle.style.top = `${window.innerHeight * 0.5}px`;
+    if (state.panelOpen) {
+      const rect = els.sidePanel.getBoundingClientRect();
+      els.panelEdgeToggle.style.left = `${rect.left}px`;
+    } else {
+      els.panelEdgeToggle.style.left = `${window.innerWidth - 14}px`;
+    }
+  }
+
+  function setPanelOpen(open) {
+    state.panelOpen = open;
+    els.app.classList.toggle('panel-collapsed', !open);
+    els.panelEdgeToggle.innerHTML = open ? '&#10095;' : '&#10094;';
+    positionPanelEdgeToggle();
+    updateCanvasDisplay();
+    render();
+    window.setTimeout(() => {
+      positionPanelEdgeToggle();
+      updateCanvasDisplay();
+      render();
+    }, 300);
+  }
+
+  function syncTheme() {
+    els.body.classList.toggle('dark', state.darkMode);
+    els.themeToggle.textContent = state.darkMode ? 'light mode' : 'dark mode';
+    render();
+  }
+
+  function getCanvasPoint(event) {
+    const rect = els.canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (state.width / rect.width),
+      y: (event.clientY - rect.top) * (state.height / rect.height)
+    };
+  }
+
+  function captureCanvasPointer(pointerId) {
+    if (typeof els.canvas.setPointerCapture !== 'function') {
+      return;
+    }
+    try {
+      els.canvas.setPointerCapture(pointerId);
+    } catch (error) {
+      // Ignore unsupported capture edge cases (older Safari/indirect pointers).
+    }
+  }
+
+  function releaseCanvasPointer(pointerId) {
+    if (pointerId === null || typeof els.canvas.releasePointerCapture !== 'function') {
+      return;
+    }
+    try {
+      els.canvas.releasePointerCapture(pointerId);
+    } catch (error) {
+      // Ignore if capture is already released.
+    }
+  }
+
+  function normalizeHexColor(value, fallback = '#111111') {
+    const raw = String(value || '').trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(raw)) {
+      return raw.toLowerCase();
+    }
+    if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+      const r = raw[1];
+      const g = raw[2];
+      const b = raw[3];
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return fallback.toLowerCase();
+  }
+
+  function isPaletteInk(color) {
+    const normalized = normalizeHexColor(color, '');
+    if (!normalized) {
+      return false;
+    }
+    return inkPalette.some((item) => normalizeHexColor(item, '') === normalized);
+  }
+
+  function resolveFontIndexFromBox(box) {
+    if (Number.isInteger(box.fontIndex) && box.fontIndex >= 0 && box.fontIndex < fontOptions.length) {
+      return box.fontIndex;
+    }
+    const match = fontOptions.findIndex((option) => option.value === box.font);
+    return match >= 0 ? match : clamp(state.fontIndex || 0, 0, Math.max(0, fontOptions.length - 1));
+  }
+
+  function ensureTextBoxStyle(box) {
+    if (!box) {
+      return;
+    }
+
+    const idx = resolveFontIndexFromBox(box);
+    box.fontIndex = idx;
+    box.font = fontOptions[idx] ? fontOptions[idx].value : fontOptions[0].value;
+    box.lineHeight = clamp(Number.isFinite(box.lineHeight) ? box.lineHeight : state.lineHeight, 0.85, 2.2);
+    box.inkColor = normalizeHexColor(box.inkColor, state.inkColor);
+    box.customInk = normalizeHexColor(box.customInk || box.inkColor, box.inkColor);
+    if (!alignmentOrder.includes(box.align)) {
+      box.align = 'left';
+    }
+  }
+
+  function syncStyleDefaultsFromBox(box) {
+    if (!box) {
+      return;
+    }
+    ensureTextBoxStyle(box);
+    state.fontIndex = box.fontIndex;
+    state.font = box.font;
+    state.lineHeight = box.lineHeight;
+    state.inkColor = box.inkColor;
+  }
+
+  function setBoxFontIndex(box, nextIndex) {
+    if (!box) {
+      return;
+    }
+    const total = fontOptions.length;
+    box.fontIndex = ((nextIndex % total) + total) % total;
+    box.font = fontOptions[box.fontIndex].value;
+    syncStyleDefaultsFromBox(box);
+    ensureFontLoaded(box.font).then((loaded) => {
+      if (loaded) {
+        render();
+      }
+    });
+  }
+
+  function setBoxInkColor(box, color, custom = false) {
+    if (!box) {
+      return;
+    }
+    const normalized = normalizeHexColor(color, box.inkColor);
+    box.inkColor = normalized;
+    if (custom) {
+      box.customInk = normalized;
+    }
+    syncStyleDefaultsFromBox(box);
+  }
+
+  function cycleTextAlign(box) {
+    const current = alignmentOrder.includes(box.align) ? box.align : 'left';
+    const next = alignmentOrder[(alignmentOrder.indexOf(current) + 1) % alignmentOrder.length];
+    box.align = next;
+  }
+
+  function createTextBox(text = '') {
+    const w = Math.round(state.width * 0.72);
+    const h = Math.round(state.height * 0.46);
+    const index = state.textBoxes.length;
+    const offset = (index % 4) * 20;
+
+    const box = {
+      id: `tb-${++state.textBoxCounter}`,
+      text,
+      x: Math.round((state.width - w) / 2) + offset,
+      y: Math.round((state.height - h) / 2) + offset,
+      w,
+      h,
+      rotation: 0,
+      align: 'left',
+      fontIndex: state.fontIndex,
+      font: state.font,
+      lineHeight: state.lineHeight,
+      inkColor: state.inkColor,
+      customInk: state.inkColor
+    };
+
+    ensureTextBoxStyle(box);
+    clampTextBoxToCanvas(box);
+    return box;
+  }
+
+  function getTextBoxById(id) {
+    return state.textBoxes.find((box) => box.id === id) || null;
+  }
+
+  function getSelectedTextBox() {
+    const selected = getTextBoxById(state.selectedTextBoxId);
+    if (selected) {
+      ensureTextBoxStyle(selected);
+      return selected;
+    }
+    if (state.textBoxes[0]) {
+      ensureTextBoxStyle(state.textBoxes[0]);
+      return state.textBoxes[0];
+    }
+    return null;
+  }
+
+  function setSelectedTextBox(id, bringFront = false, preserveColorPanel = false) {
+    const box = getTextBoxById(id);
+    if (!box) {
+      return;
+    }
+    ensureTextBoxStyle(box);
+
+    state.selectedTextBoxId = id;
+    state.selectedMarkId = null;
+    state.showTextUi = true;
+    if (!preserveColorPanel) {
+      state.openTextColorBoxId = null;
+    }
+    syncStyleDefaultsFromBox(box);
+
+    if (bringFront) {
+      state.textBoxes = state.textBoxes.filter((item) => item.id !== id);
+      state.textBoxes.push(box);
+      renderTextList();
+    }
+
+    updateTextListSelection();
+    updateMarkControls();
+  }
+
+  function updateTextListSelection() {
+    const items = els.textList.querySelectorAll('.text-item');
+    for (const item of items) {
+      item.classList.toggle('active', item.dataset.boxId === state.selectedTextBoxId);
+    }
+  }
+
+  function syncTextListValue(boxId) {
+    const box = getTextBoxById(boxId);
+    if (!box) {
+      return;
+    }
+    const input = els.textList.querySelector(`.text-item[data-box-id="${boxId}"] textarea`);
+    if (input && input.value !== box.text) {
+      input.value = box.text;
+    }
+  }
+
+  function hideCanvasTextEditor() {
+    els.canvasTextEditor.classList.remove('show');
+  }
+
+  function closeCanvasTextEditor() {
+    if (!state.canvasEditor.active) {
+      return;
+    }
+
+    const box = getTextBoxById(state.canvasEditor.boxId);
+    if (box) {
+      box.text = els.canvasTextEditor.value;
+      syncTextListValue(box.id);
+    }
+
+    state.canvasEditor.active = false;
+    state.canvasEditor.boxId = null;
+    hideCanvasTextEditor();
+    if (document.activeElement === els.canvasTextEditor) {
+      els.canvasTextEditor.blur();
+    }
+    state.textEditing = false;
+  }
+
+  function openCanvasTextEditor(boxId, placeCaretAtEnd = true) {
+    const box = getTextBoxById(boxId);
+    if (!box || state.exporting || state.selectedMarkId) {
+      return;
+    }
+
+    state.canvasEditor.active = true;
+    state.canvasEditor.boxId = boxId;
+    state.textEditing = true;
+    state.showTextUi = true;
+    state.selectedTextBoxId = boxId;
+    if (els.canvasTextEditor.value !== box.text) {
+      els.canvasTextEditor.value = box.text;
+    }
+
+    render();
+
+    window.requestAnimationFrame(() => {
+      if (!state.canvasEditor.active || state.canvasEditor.boxId !== boxId) {
+        return;
+      }
+      els.canvasTextEditor.focus({ preventScroll: true });
+      if (placeCaretAtEnd) {
+        const end = els.canvasTextEditor.value.length;
+        els.canvasTextEditor.setSelectionRange(end, end);
+      }
+    });
+  }
+
+  function removeTextBox(id) {
+    const index = state.textBoxes.findIndex((box) => box.id === id);
+    if (index < 0) {
+      return;
+    }
+
+    const removedWasSelected = state.selectedTextBoxId === id;
+    state.textBoxes.splice(index, 1);
+
+    if (removedWasSelected) {
+      const fallback = state.textBoxes[index] || state.textBoxes[index - 1] || null;
+      state.selectedTextBoxId = fallback ? fallback.id : null;
+      state.showTextUi = Boolean(fallback);
+      state.textEditing = false;
+    }
+
+    if (state.canvasEditor.active && state.canvasEditor.boxId === id) {
+      state.canvasEditor.active = false;
+      state.canvasEditor.boxId = null;
+      hideCanvasTextEditor();
+    }
+    if (state.openTextColorBoxId === id) {
+      state.openTextColorBoxId = null;
+    }
+
+    renderTextList();
+    updateMarkControls();
+    render();
+  }
+
+  function renderTextList() {
+    els.textList.innerHTML = '';
+
+    for (const box of state.textBoxes) {
+      ensureTextBoxStyle(box);
+      const item = document.createElement('div');
+      item.className = 'text-item';
+      item.dataset.boxId = box.id;
+
+      const input = document.createElement('textarea');
+      input.spellcheck = false;
+      input.placeholder = defaultText;
+      input.value = box.text;
+      input.addEventListener('focus', () => {
+        closeCanvasTextEditor();
+        setSelectedTextBox(box.id, false);
+        state.textEditing = true;
+        render();
+      });
+      input.addEventListener('click', () => {
+        closeCanvasTextEditor();
+        setSelectedTextBox(box.id, false);
+        state.textEditing = true;
+        render();
+      });
+      input.addEventListener('input', () => {
+        box.text = input.value;
+        if (state.canvasEditor.active && state.canvasEditor.boxId === box.id && els.canvasTextEditor.value !== box.text) {
+          els.canvasTextEditor.value = box.text;
+        }
+        render();
+      });
+      item.appendChild(input);
+
+      const controls = document.createElement('div');
+      controls.className = 'text-item-controls';
+
+      const topRow = document.createElement('div');
+      topRow.className = 'text-item-top-row';
+
+      const alignBtn = document.createElement('button');
+      alignBtn.type = 'button';
+      alignBtn.className = 'align-btn align-cycle-btn';
+      alignBtn.setAttribute('aria-label', 'cycle text alignment');
+      const alignIcon = document.createElement('span');
+      alignIcon.className = `align-icon ${box.align || 'left'}`;
+      alignBtn.appendChild(alignIcon);
+      alignBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        cycleTextAlign(box);
+        setSelectedTextBox(box.id, false);
+        renderTextList();
+        render();
+      });
+      topRow.appendChild(alignBtn);
+
+      const colorBtn = document.createElement('button');
+      colorBtn.type = 'button';
+      colorBtn.className = 'text-color-toggle';
+      colorBtn.setAttribute('aria-label', 'choose text color');
+      colorBtn.style.background = box.inkColor;
+      colorBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const willOpen = state.openTextColorBoxId !== box.id;
+        setSelectedTextBox(box.id, false);
+        state.openTextColorBoxId = willOpen ? box.id : null;
+        renderTextList();
+      });
+      topRow.appendChild(colorBtn);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'text-remove-btn';
+      removeBtn.setAttribute('aria-label', 'remove text box');
+      removeBtn.textContent = '\u00D7';
+      removeBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        removeTextBox(box.id);
+      });
+      topRow.appendChild(removeBtn);
+      controls.appendChild(topRow);
+
+      const colorPanel = document.createElement('div');
+      colorPanel.className = 'text-color-panel' + (state.openTextColorBoxId === box.id ? ' show' : '');
+      const swatchRow = document.createElement('div');
+      swatchRow.className = 'box-color-swatches';
+
+      for (const color of inkPalette) {
+        const swatch = document.createElement('button');
+        const active = normalizeHexColor(box.inkColor, '') === normalizeHexColor(color, '');
+        swatch.type = 'button';
+        swatch.className = 'ink-swatch' + (active ? ' active' : '');
+        swatch.style.background = color;
+        swatch.setAttribute('aria-label', `set ink ${color}`);
+        swatch.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setSelectedTextBox(box.id, false);
+          setBoxInkColor(box, color, false);
+          state.openTextColorBoxId = null;
+          renderTextList();
+          render();
+        });
+        swatchRow.appendChild(swatch);
+      }
+
+      const customInput = document.createElement('input');
+      customInput.type = 'color';
+      customInput.className = 'box-custom-input';
+      customInput.value = box.customInk;
+      customInput.addEventListener('input', () => {
+        setSelectedTextBox(box.id, false, true);
+        setBoxInkColor(box, customInput.value, true);
+        state.openTextColorBoxId = box.id;
+        colorBtn.style.background = box.inkColor;
+        customSwatch.classList.remove('inactive');
+        customSwatch.classList.add('active');
+        customSwatch.style.background = box.inkColor;
+        render();
+      });
+
+      const customSwatch = document.createElement('button');
+      const customActive = !isPaletteInk(box.inkColor);
+      customSwatch.type = 'button';
+      customSwatch.className = `ink-swatch box-custom-swatch${customActive ? ' active' : ' inactive'}`;
+      customSwatch.setAttribute('aria-label', 'custom text color');
+      customSwatch.style.background = customActive ? box.inkColor : '#ffffff';
+      customSwatch.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelectedTextBox(box.id, false, true);
+        state.openTextColorBoxId = box.id;
+        customInput.click();
+      });
+
+      swatchRow.appendChild(customSwatch);
+      swatchRow.appendChild(customInput);
+      colorPanel.appendChild(swatchRow);
+      controls.appendChild(colorPanel);
+
+      const spacingWrap = document.createElement('div');
+      spacingWrap.className = 'text-line-spacing';
+      const spacingLabel = document.createElement('label');
+      spacingLabel.textContent = 'line spacing';
+      const spacingSlider = document.createElement('input');
+      spacingSlider.type = 'range';
+      spacingSlider.min = '85';
+      spacingSlider.max = '220';
+      spacingSlider.step = '1';
+      spacingSlider.value = String(Math.round(box.lineHeight * 100));
+      spacingSlider.addEventListener('input', () => {
+        setSelectedTextBox(box.id, false);
+        box.lineHeight = clamp((Number(spacingSlider.value) || 136) / 100, 0.85, 2.2);
+        syncStyleDefaultsFromBox(box);
+        render();
+      });
+      spacingWrap.appendChild(spacingLabel);
+      spacingWrap.appendChild(spacingSlider);
+      controls.appendChild(spacingWrap);
+
+      const fontWrap = document.createElement('div');
+      fontWrap.className = 'text-font-wrap';
+      const fontLabel = document.createElement('label');
+      fontLabel.textContent = 'font';
+      const fontRow = document.createElement('div');
+      fontRow.className = 'texture-row';
+
+      const fontPrev = document.createElement('button');
+      fontPrev.type = 'button';
+      fontPrev.className = 'tiny-btn';
+      fontPrev.setAttribute('aria-label', 'previous font');
+      fontPrev.innerHTML = '&#10094;';
+      fontPrev.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelectedTextBox(box.id, false);
+        setBoxFontIndex(box, box.fontIndex - 1);
+        renderTextList();
+        render();
+      });
+
+      const fontName = document.createElement('div');
+      fontName.className = 'texture-name text-item-font-name';
+      const fontLabelText = (fontOptions[box.fontIndex] || fontOptions[0]).label;
+      fontName.textContent = `Aa ${fontLabelText}`;
+      fontName.style.fontFamily = box.font;
+
+      const fontNext = document.createElement('button');
+      fontNext.type = 'button';
+      fontNext.className = 'tiny-btn';
+      fontNext.setAttribute('aria-label', 'next font');
+      fontNext.innerHTML = '&#10095;';
+      fontNext.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelectedTextBox(box.id, false);
+        setBoxFontIndex(box, box.fontIndex + 1);
+        renderTextList();
+        render();
+      });
+
+      fontRow.appendChild(fontPrev);
+      fontRow.appendChild(fontName);
+      fontRow.appendChild(fontNext);
+      fontWrap.appendChild(fontLabel);
+      fontWrap.appendChild(fontRow);
+      controls.appendChild(fontWrap);
+
+      item.appendChild(controls);
+      els.textList.appendChild(item);
+    }
+
+    updateTextListSelection();
+  }
+
+  function clampTextBoxToCanvas(box) {
+    box.w = clamp(box.w, textBoxMinW, state.width);
+    box.h = clamp(box.h, textBoxMinH, state.height);
+    box.x = clamp(box.x, 0, state.width - box.w);
+    box.y = clamp(box.y, 0, state.height - box.h);
+  }
+
+  function clampAllTextBoxes() {
+    for (const box of state.textBoxes) {
+      clampTextBoxToCanvas(box);
+    }
+  }
+
+  function clampAllMarks() {
+    for (const mark of state.marks) {
+      mark.w = clamp(mark.w, markMinW, state.width);
+      mark.h = clamp(mark.h, markMinH, state.height);
+      clampMarkPosition(mark);
+    }
+  }
+
+  function clampMarkPosition(mark) {
+    const minX = -mark.w + markMinVisible;
+    const maxX = state.width - markMinVisible;
+    const minY = -mark.h + markMinVisible;
+    const maxY = state.height - markMinVisible;
+    mark.x = clamp(mark.x, minX, maxX);
+    mark.y = clamp(mark.y, minY, maxY);
+  }
+
+  function wrapParagraph(paragraph, maxWidth) {
+    if (!paragraph.length) {
+      return [''];
+    }
+
+    const lines = [];
+    let line = '';
+    let lastSpaceIndex = -1;
+
+    const pushLine = (value) => {
+      lines.push(value.replace(/\s+$/g, ''));
+    };
+
+    for (let i = 0; i < paragraph.length; i += 1) {
+      const ch = paragraph[i];
+      line += ch;
+
+      if (/\s/.test(ch)) {
+        lastSpaceIndex = line.length - 1;
+      }
+
+      if (ctx.measureText(line).width > maxWidth) {
+        if (lastSpaceIndex >= 0) {
+          const before = line.slice(0, lastSpaceIndex);
+          pushLine(before);
+          line = line.slice(lastSpaceIndex + 1).replace(/^\s+/g, '');
+          lastSpaceIndex = Math.max(line.lastIndexOf(' '), line.lastIndexOf('\t'));
+        } else {
+          const chunk = line.slice(0, -1);
+          if (chunk.length) {
+            pushLine(chunk);
+            line = ch;
+            lastSpaceIndex = /\s/.test(ch) ? 0 : -1;
+          }
+        }
+      }
+    }
+
+    if (line.length || !lines.length) {
+      pushLine(line);
+    }
+
+    return lines;
+  }
+
+  function getBoxDisplayText(box) {
+    const value = box.text || '';
+    if (value.length > 0) {
+      return box.text;
+    }
+    return defaultText;
+  }
+
+  function layoutTextForBox(box, fontSize, textOverride = null) {
+    ensureTextBoxStyle(box);
+    const contentWidth = Math.max(10, box.w - textPadding * 2);
+    const contentHeight = Math.max(10, box.h - textPadding * 2);
+
+    ctx.save();
+    ctx.font = `${fontSize}px ${box.font}`;
+
+    const sourceText = (textOverride === null ? getBoxDisplayText(box) : textOverride);
+    const paragraphs = sourceText.replace(/\r/g, '').split('\n');
+    const lines = [];
+
+    for (const paragraph of paragraphs) {
+      const wrapped = wrapParagraph(paragraph, contentWidth);
+      for (const line of wrapped) {
+        lines.push(line);
+      }
+    }
+
+    const lineWidths = lines.map((line) => ctx.measureText(line || ' ').width);
+    const lineHeightPx = fontSize * box.lineHeight;
+    const totalHeight = lines.length * lineHeightPx;
+
+    ctx.restore();
+
+    return {
+      lines,
+      lineWidths,
+      lineHeightPx,
+      totalHeight,
+      contentHeight,
+      fitsHeight: totalHeight <= contentHeight
+    };
+  }
+
+  function fitFontSizeForBox(box) {
+    const sourceText = getBoxDisplayText(box);
+    let low = 1;
+    let high = 260;
+    let best = 1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const layout = layoutTextForBox(box, mid, sourceText);
+      if (layout.fitsHeight) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return best;
+  }
+
+  function getBoxFontSize(box) {
+    return Math.max(1, fitFontSizeForBox(box));
+  }
+
+  function lineXStart(box, lineWidth) {
+    const align = box.align || 'left';
+    if (align === 'center') {
+      return box.x + textPadding + (box.w - textPadding * 2 - lineWidth) / 2;
+    }
+    if (align === 'right') {
+      return box.x + box.w - textPadding - lineWidth;
+    }
+    return box.x + textPadding;
+  }
+
+  function lineJogProfile(lineCount, fontSize) {
+    const amplitude = state.effects.jogAmount * fontSize * 0.34;
+    if (amplitude <= 0.01) {
+      return {
+        offsets: new Array(lineCount).fill(0),
+        affected: new Array(lineCount).fill(false)
+      };
+    }
+
+    const offsets = [];
+    const affected = [];
+    let drift = 0;
+
+    for (let i = 0; i < lineCount; i += 1) {
+      const isAffected = hash01(state.effects.jogSeed, i, 3, 29) < state.effects.jogAmount;
+      affected.push(isAffected);
+
+      if (!isAffected) {
+        offsets.push(0);
+        continue;
+      }
+
+      const step = (hash01(state.effects.jogSeed, i, 19, 71) * 2 - 1) * amplitude * 0.32;
+      drift = clamp(drift + step, -amplitude, amplitude);
+      const local = (hash01(state.effects.jogSeed, i, 31, 103) * 2 - 1) * amplitude * 0.55;
+      offsets.push(drift + local);
+    }
+
+    return { offsets, affected };
+  }
+
+  function drawImageCover(image, x, y, width, height) {
+    const srcW = image.naturalWidth || image.width || 1;
+    const srcH = image.naturalHeight || image.height || 1;
+    const scale = Math.max(width / srcW, height / srcH);
+    const drawW = srcW * scale;
+    const drawH = srcH * scale;
+    const drawX = x + (width - drawW) * 0.5;
+    const drawY = y + (height - drawH) * 0.5;
+    ctx.drawImage(image, drawX, drawY, drawW, drawH);
+  }
+
+  function shouldRotateTextureForCover(image, targetW, targetH) {
+    const srcW = image.naturalWidth || image.width || 1;
+    const srcH = image.naturalHeight || image.height || 1;
+    const targetArea = Math.max(1, targetW * targetH);
+
+    const normalScale = Math.max(targetW / srcW, targetH / srcH);
+    const normalArea = (srcW * normalScale) * (srcH * normalScale);
+    const normalVisible = targetArea / Math.max(1, normalArea);
+
+    const rotatedScale = Math.max(targetW / srcH, targetH / srcW);
+    const rotatedArea = (srcH * rotatedScale) * (srcW * rotatedScale);
+    const rotatedVisible = targetArea / Math.max(1, rotatedArea);
+
+    return rotatedVisible > normalVisible + 0.005;
+  }
+
+  function drawTexture() {
+    const texture = getTexture();
+    if (!texture.src || state.textureBlend <= 0) {
+      return;
+    }
+
+    const image = loadTexture(state.textureIndex);
+    if (!image || !image.complete) {
+      return;
+    }
+
+    ctx.save();
+    const rotateForCover = shouldRotateTextureForCover(image, state.width, state.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.filter = 'grayscale(1) contrast(1.62) brightness(1.04)';
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = state.textureBlend;
+
+    if (rotateForCover) {
+      ctx.translate(state.width * 0.5, state.height * 0.5);
+      ctx.rotate(Math.PI * 0.5);
+      drawImageCover(image, -state.height * 0.5, -state.width * 0.5, state.height, state.width);
+    } else {
+      drawImageCover(image, 0, 0, state.width, state.height);
+    }
+
+    ctx.restore();
+  }
+
+  function drawTextBox(box) {
+    ensureTextBoxStyle(box);
+    const isPlaceholder = !(box.text || '').length;
+    const sourceText = isPlaceholder ? defaultText : box.text;
+    const fontSize = getBoxFontSize(box);
+    const layout = layoutTextForBox(box, fontSize, sourceText);
+    const jog = lineJogProfile(layout.lines.length, fontSize);
+    const midLineAmp = state.effects.jogAmount * fontSize * 0.12;
+
+    const center = rectCenter(box);
+
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.rotate(box.rotation);
+    ctx.translate(-center.x, -center.y);
+
+    ctx.beginPath();
+    ctx.rect(box.x, box.y, box.w, box.h);
+    ctx.clip();
+
+    ctx.filter = 'none';
+    ctx.font = `${fontSize}px ${box.font}`;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = box.inkColor;
+    const verticalOffset = Math.max(0, (layout.contentHeight - layout.totalHeight) * 0.5);
+
+    for (let lineIndex = 0; lineIndex < layout.lines.length; lineIndex += 1) {
+      const line = layout.lines[lineIndex];
+      const lineWidth = layout.lineWidths[lineIndex];
+      let x = lineXStart(box, lineWidth);
+      const yBase = box.y + textPadding + verticalOffset + lineIndex * layout.lineHeightPx + jog.offsets[lineIndex];
+
+      for (let charIndex = 0; charIndex < line.length; charIndex += 1) {
+        const char = line[charIndex];
+        const width = ctx.measureText(char).width;
+        let y = yBase;
+
+        if (!isPlaceholder && state.effects.jogMidline && jog.affected[lineIndex] && midLineAmp > 0.01) {
+          const phase = hash01(state.effects.jogSeed, lineIndex, 401, 11) * Math.PI * 2;
+          const wave = Math.sin(charIndex * 0.92 + phase);
+          const noise = hash01(state.effects.jogSeed, lineIndex, charIndex, 421) * 2 - 1;
+          y += (wave * 0.55 + noise * 0.45) * midLineAmp;
+        }
+
+        const fadeRoll = hash01(state.effects.fadeSeed, lineIndex, charIndex, 5);
+        let alpha = 1;
+        if (!isPlaceholder && state.effects.fadeAmount > 0 && fadeRoll < state.effects.fadeAmount && char !== ' ') {
+          const variance = (hash01(state.effects.fadeSeed, lineIndex, charIndex, 91) * 2 - 1) * 0.14;
+          alpha = clamp(state.effects.fadeOpacity + variance, 0.05, 1);
+        }
+        if (isPlaceholder) {
+          alpha = 0.35;
+        }
+
+        ctx.globalAlpha = alpha;
+        ctx.fillText(char, x, y);
+
+        const doubleRoll = hash01(state.effects.doubleSeed, lineIndex, charIndex, 17);
+        if (!isPlaceholder && state.effects.doubleAmount > 0 && doubleRoll < state.effects.doubleAmount && char !== ' ') {
+          const intensity = 0.55;
+          const boldPasses = 1 + Math.round(intensity * 2);
+          const tightSpread = 0.22 + intensity * 0.9;
+
+          for (let pass = 0; pass < boldPasses; pass += 1) {
+            const passJitterX = (hash01(state.effects.doubleSeed, lineIndex, charIndex, 121 + pass) * 2 - 1) * tightSpread;
+            const passJitterY = (hash01(state.effects.doubleSeed, lineIndex, charIndex, 161 + pass) * 2 - 1) * tightSpread;
+            ctx.globalAlpha = Math.min(1, alpha * (0.32 + intensity * 0.42));
+            ctx.fillText(char, x + passJitterX, y + passJitterY);
+          }
+
+          const offsetMag = (0.45 + intensity * 2.5) + fontSize * (0.008 + intensity * 0.04);
+          const jitterX = (hash01(state.effects.doubleSeed, lineIndex, charIndex, 211) * 2 - 1) * offsetMag;
+          const jitterY = (hash01(state.effects.doubleSeed, lineIndex, charIndex, 251) * 2 - 1) * offsetMag;
+          ctx.globalAlpha = Math.min(1, alpha * (0.4 + intensity * 0.46));
+          ctx.fillText(char, x + jitterX, y + jitterY);
+        }
+
+        x += width;
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawTextBoxes() {
+    const editingId = (state.canvasEditor.active && !state.exporting) ? state.canvasEditor.boxId : null;
+    for (const box of state.textBoxes) {
+      if (state.exporting && !/\S/.test(box.text || '')) {
+        continue;
+      }
+      if (editingId && box.id === editingId) {
+        continue;
+      }
+      drawTextBox(box);
+    }
+  }
+
+  function hexToRgb(hex) {
+    const value = String(hex || '').trim();
+    if (!value.startsWith('#')) {
+      return { r: 0, g: 0, b: 0 };
+    }
+    const compact = value.slice(1);
+    if (compact.length === 3) {
+      return {
+        r: parseInt(compact[0] + compact[0], 16),
+        g: parseInt(compact[1] + compact[1], 16),
+        b: parseInt(compact[2] + compact[2], 16)
+      };
+    }
+    if (compact.length >= 6) {
+      return {
+        r: parseInt(compact.slice(0, 2), 16),
+        g: parseInt(compact.slice(2, 4), 16),
+        b: parseInt(compact.slice(4, 6), 16)
+      };
+    }
+    return { r: 0, g: 0, b: 0 };
+  }
+
+  function drawMarks() {
+    for (const mark of state.marks) {
+      const image = loadMarkImage(mark.assetIndex);
+      if (!image || !image.complete) {
+        continue;
+      }
+
+      const markCanvas = document.createElement('canvas');
+      markCanvas.width = Math.max(1, Math.round(mark.w));
+      markCanvas.height = Math.max(1, Math.round(mark.h));
+      const markCtx = markCanvas.getContext('2d');
+      if (!markCtx) {
+        continue;
+      }
+      markCtx.drawImage(image, 0, 0, markCanvas.width, markCanvas.height);
+      try {
+        const img = markCtx.getImageData(0, 0, markCanvas.width, markCanvas.height);
+        const data = img.data;
+        const rgb = hexToRgb(mark.color);
+        const edgeLum = [];
+        const stepX = Math.max(1, Math.floor(markCanvas.width / 18));
+        const stepY = Math.max(1, Math.floor(markCanvas.height / 18));
+        let hasIntrinsicAlpha = false;
+
+        for (let x = 0; x < markCanvas.width; x += stepX) {
+          const top = (x * 4);
+          const bottom = (((markCanvas.height - 1) * markCanvas.width + x) * 4);
+          edgeLum.push((0.2126 * data[top] + 0.7152 * data[top + 1] + 0.0722 * data[top + 2]) / 255);
+          edgeLum.push((0.2126 * data[bottom] + 0.7152 * data[bottom + 1] + 0.0722 * data[bottom + 2]) / 255);
+        }
+        for (let y = 0; y < markCanvas.height; y += stepY) {
+          const left = ((y * markCanvas.width) * 4);
+          const right = ((y * markCanvas.width + (markCanvas.width - 1)) * 4);
+          edgeLum.push((0.2126 * data[left] + 0.7152 * data[left + 1] + 0.0722 * data[left + 2]) / 255);
+          edgeLum.push((0.2126 * data[right] + 0.7152 * data[right + 1] + 0.0722 * data[right + 2]) / 255);
+        }
+        for (let i = 3; i < data.length; i += 64) {
+          if (data[i] < 248) {
+            hasIntrinsicAlpha = true;
+            break;
+          }
+        }
+        edgeLum.sort((a, b) => a - b);
+        const bgLum = edgeLum.length ? edgeLum[Math.floor(edgeLum.length * 0.5)] : 1;
+        const lightBg = bgLum >= 0.58;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const srcR = data[i];
+          const srcG = data[i + 1];
+          const srcB = data[i + 2];
+          const srcA = data[i + 3] / 255;
+          const srcLum = (0.2126 * srcR + 0.7152 * srcG + 0.0722 * srcB) / 255;
+
+          const toneMask = hasIntrinsicAlpha
+            ? (lightBg
+              ? clamp((bgLum - srcLum - 0.035) / 0.5, 0, 1)
+              : clamp((srcLum - bgLum - 0.035) / 0.5, 0, 1))
+            : (lightBg
+              ? clamp((bgLum - srcLum - 0.1) / 0.42, 0, 1)
+              : clamp((srcLum - bgLum - 0.1) / 0.42, 0, 1));
+
+          let alpha = hasIntrinsicAlpha
+            ? srcA * clamp(0.36 + toneMask * 0.84, 0, 1)
+            : Math.pow(toneMask, 1.16);
+
+          if (alpha < (hasIntrinsicAlpha ? 0.035 : 0.07)) {
+            alpha = 0;
+          }
+
+          data[i] = rgb.r;
+          data[i + 1] = rgb.g;
+          data[i + 2] = rgb.b;
+          data[i + 3] = Math.round(alpha * 255);
+        }
+
+        markCtx.putImageData(img, 0, 0);
+      } catch (error) {
+        markCtx.globalCompositeOperation = 'source-atop';
+        markCtx.fillStyle = mark.color;
+        markCtx.fillRect(0, 0, markCanvas.width, markCanvas.height);
+      }
+
+      const center = rectCenter(mark);
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.rotate(mark.rotation);
+      if (mark.flipY) {
+        ctx.scale(1, -1);
+      }
+      ctx.translate(-center.x, -center.y);
+
+      ctx.globalCompositeOperation = 'darken';
+      ctx.globalAlpha = mark.opacity;
+      ctx.drawImage(markCanvas, mark.x, mark.y, mark.w, mark.h);
+
+      ctx.restore();
+    }
+  }
+
+  function getRotatedCorners(rect, rotation) {
+    const center = rectCenter(rect);
+    return {
+      nw: rotatePoint(rect.x, rect.y, center.x, center.y, rotation),
+      ne: rotatePoint(rect.x + rect.w, rect.y, center.x, center.y, rotation),
+      se: rotatePoint(rect.x + rect.w, rect.y + rect.h, center.x, center.y, rotation),
+      sw: rotatePoint(rect.x, rect.y + rect.h, center.x, center.y, rotation)
+    };
+  }
+
+  function getTextControls(box) {
+    const corners = getRotatedCorners(box, box.rotation);
+    const center = rectCenter(box);
+    const topCenter = rotatePoint(box.x + box.w / 2, box.y, center.x, center.y, box.rotation);
+    const bottomCenter = rotatePoint(box.x + box.w / 2, box.y + box.h, center.x, center.y, box.rotation);
+    const rotateHandle = rotatePoint(box.x + box.w / 2, box.y - rotateHandleDistance, center.x, center.y, box.rotation);
+    const closeHandle = rotatePoint(box.x + box.w + closeHandleDistance, box.y - closeHandleDistance, center.x, center.y, box.rotation);
+
+    return {
+      corners,
+      topCenter,
+      bottomCenter,
+      rotate: rotateHandle,
+      close: closeHandle
+    };
+  }
+
+  function getMarkControls(mark) {
+    const corners = getRotatedCorners(mark, mark.rotation);
+    const center = rectCenter(mark);
+    const topCenter = rotatePoint(mark.x + mark.w / 2, mark.y, center.x, center.y, mark.rotation);
+    const rotateHandle = rotatePoint(mark.x + mark.w / 2, mark.y - rotateHandleDistance, center.x, center.y, mark.rotation);
+    const closeHandle = rotatePoint(mark.x + mark.w + closeHandleDistance, mark.y - closeHandleDistance, center.x, center.y, mark.rotation);
+
+    return {
+      corners,
+      topCenter,
+      rotate: rotateHandle,
+      close: closeHandle
+    };
+  }
+
+  function drawPolygon(points, strokeStyle, lineWidth = 1.2, dashed = false) {
+    ctx.save();
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    if (dashed) {
+      ctx.setLineDash([8, 6]);
+    }
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i += 1) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSquareHandle(point, active = false) {
+    ctx.save();
+    ctx.fillStyle = active
+      ? (state.darkMode ? 'rgba(246, 239, 224, 0.98)' : 'rgba(40, 32, 24, 0.96)')
+      : (state.darkMode ? 'rgba(239, 230, 210, 0.92)' : 'rgba(40, 32, 24, 0.74)');
+    ctx.fillRect(point.x - handleSize / 2, point.y - handleSize / 2, handleSize, handleSize);
+    ctx.strokeStyle = state.darkMode ? 'rgba(9, 8, 7, 0.86)' : 'rgba(244, 239, 230, 0.88)';
+    ctx.lineWidth = 1.3;
+    ctx.strokeRect(point.x - handleSize / 2, point.y - handleSize / 2, handleSize, handleSize);
+    ctx.restore();
+  }
+
+  function drawRotateHandle(anchor, handle, active = false) {
+    ctx.save();
+    ctx.strokeStyle = state.darkMode ? 'rgba(236, 227, 213, 0.58)' : 'rgba(40, 32, 24, 0.5)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(anchor.x, anchor.y);
+    ctx.lineTo(handle.x, handle.y);
+    ctx.stroke();
+
+    ctx.fillStyle = active
+      ? (state.darkMode ? 'rgba(236, 227, 213, 0.96)' : 'rgba(40, 32, 24, 0.96)')
+      : (state.darkMode ? 'rgba(236, 227, 213, 0.78)' : 'rgba(40, 32, 24, 0.74)');
+    ctx.beginPath();
+    ctx.arc(handle.x, handle.y, 6.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCloseHandle(point) {
+    ctx.save();
+    ctx.fillStyle = state.darkMode ? 'rgba(236, 227, 213, 0.92)' : 'rgba(40, 32, 24, 0.88)';
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = state.darkMode ? '#0f0e0d' : '#f2eadf';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(point.x - 3, point.y - 3);
+    ctx.lineTo(point.x + 3, point.y + 3);
+    ctx.moveTo(point.x + 3, point.y - 3);
+    ctx.lineTo(point.x - 3, point.y + 3);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawGuides() {
+    if (state.exporting) {
+      return;
+    }
+
+    const stroke = state.darkMode ? 'rgba(244, 236, 220, 0.74)' : 'rgba(40, 32, 24, 0.38)';
+
+    const selectedBox = getSelectedTextBox();
+    if (selectedBox && state.showTextUi) {
+      const controls = getTextControls(selectedBox);
+      drawPolygon([controls.corners.nw, controls.corners.ne, controls.corners.se, controls.corners.sw], stroke, 1.3, true);
+      drawSquareHandle(controls.corners.nw, state.interaction.mode === 'resizeText' && state.interaction.handle === 'nw');
+      drawSquareHandle(controls.corners.ne, state.interaction.mode === 'resizeText' && state.interaction.handle === 'ne');
+      drawSquareHandle(controls.corners.se, state.interaction.mode === 'resizeText' && state.interaction.handle === 'se');
+      drawSquareHandle(controls.corners.sw, state.interaction.mode === 'resizeText' && state.interaction.handle === 'sw');
+      drawRotateHandle(controls.topCenter, controls.rotate, state.interaction.mode === 'rotateText');
+      drawCloseHandle(controls.close);
+    }
+
+    if (state.interaction.mode === 'dragText') {
+      const midX = state.width / 2;
+      const midY = state.height / 2;
+      ctx.save();
+      ctx.strokeStyle = state.darkMode ? 'rgba(236, 227, 213, 0.18)' : 'rgba(40, 32, 24, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(midX, 0);
+      ctx.lineTo(midX, state.height);
+      ctx.moveTo(0, midY);
+      ctx.lineTo(state.width, midY);
+      ctx.stroke();
+
+      if (state.snap.x) {
+        ctx.strokeStyle = state.darkMode ? 'rgba(236, 227, 213, 0.62)' : 'rgba(40, 32, 24, 0.52)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(midX, 0);
+        ctx.lineTo(midX, state.height);
+        ctx.stroke();
+      }
+      if (state.snap.y) {
+        ctx.strokeStyle = state.darkMode ? 'rgba(236, 227, 213, 0.62)' : 'rgba(40, 32, 24, 0.52)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(0, midY);
+        ctx.lineTo(state.width, midY);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    const selectedMark = getMarkById(state.selectedMarkId);
+    if (selectedMark) {
+      const controls = getMarkControls(selectedMark);
+      drawPolygon([controls.corners.nw, controls.corners.ne, controls.corners.se, controls.corners.sw], stroke, 1.2, true);
+      drawSquareHandle(controls.corners.nw, state.interaction.mode === 'resizeMark' && state.interaction.handle === 'nw');
+      drawSquareHandle(controls.corners.ne, state.interaction.mode === 'resizeMark' && state.interaction.handle === 'ne');
+      drawSquareHandle(controls.corners.se, state.interaction.mode === 'resizeMark' && state.interaction.handle === 'se');
+      drawSquareHandle(controls.corners.sw, state.interaction.mode === 'resizeMark' && state.interaction.handle === 'sw');
+      drawRotateHandle(controls.topCenter, controls.rotate, state.interaction.mode === 'rotateMark');
+      drawCloseHandle(controls.close);
+    }
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, state.width, state.height);
+
+    ctx.save();
+    ctx.fillStyle = state.paperColor;
+    ctx.fillRect(0, 0, state.width, state.height);
+    ctx.restore();
+
+    drawTexture();
+    drawTextBoxes();
+    drawMarks();
+    applyGlobalBlur();
+    applyVignette();
+    drawGuides();
+    updateCanvasTextEditor();
+    updateMarkCanvasColorPicker();
+    updateTextCanvasAlignHud();
+    updateVignetteControlsVisibility();
+    updateMarkFlipUi();
+  }
+
+  function applyGlobalBlur() {
+    const blurPx = (state.effects.blurAmount / 100) * 12;
+    if (blurPx <= 0.01) {
+      return;
+    }
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = state.width;
+    offscreen.height = state.height;
+    const offCtx = offscreen.getContext('2d');
+    if (!offCtx) {
+      return;
+    }
+    offCtx.drawImage(els.canvas, 0, 0);
+
+    ctx.save();
+    ctx.clearRect(0, 0, state.width, state.height);
+    ctx.filter = `blur(${blurPx.toFixed(2)}px)`;
+    ctx.drawImage(offscreen, 0, 0);
+    ctx.restore();
+  }
+
+  function applyVignette() {
+    if (!state.effects.vignetteEnabled || state.effects.vignetteAmount <= 0) {
+      return;
+    }
+
+    const amount = clamp(state.effects.vignetteAmount, 0, 1);
+    const radius = 0.52 + amount * 0.36;
+    const gradient = ctx.createRadialGradient(
+      state.width * 0.5,
+      state.height * 0.5,
+      Math.min(state.width, state.height) * 0.12,
+      state.width * 0.5,
+      state.height * 0.5,
+      Math.max(state.width, state.height) * radius
+    );
+    const edgeAlpha = 0.08 + amount * 0.34;
+
+    gradient.addColorStop(0, 'rgba(0,0,0,0)');
+    gradient.addColorStop(0.66, 'rgba(0,0,0,0)');
+    gradient.addColorStop(1, `rgba(0,0,0,${edgeAlpha.toFixed(3)})`);
+
+    ctx.save();
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, state.width, state.height);
+    ctx.restore();
+  }
+
+  function updateCanvasDisplay() {
+    const bounds = els.paperStage.getBoundingClientRect();
+    const maxW = Math.max(220, bounds.width - 20);
+    const maxH = Math.max(220, bounds.height - 20);
+    const scale = Math.min(maxW / state.width, maxH / state.height, 1);
+    els.canvas.style.width = `${Math.round(state.width * scale)}px`;
+    els.canvas.style.height = `${Math.round(state.height * scale)}px`;
+  }
+
+  function setCanvasSize(width, height) {
+    state.width = clamp(Math.round(width), 300, 5000);
+    state.height = clamp(Math.round(height), 300, 7000);
+
+    els.canvas.width = state.width;
+    els.canvas.height = state.height;
+    els.canvasWidth.value = String(state.width);
+    els.canvasHeight.value = String(state.height);
+
+    clampAllTextBoxes();
+    clampAllMarks();
+
+    updateCanvasDisplay();
+    render();
+  }
+
+  function setTextureIndex(nextIndex) {
+    const total = textureOptions.length;
+    state.textureIndex = ((nextIndex % total) + total) % total;
+    updateTextureLabel();
+    updateTextureControlsVisibility();
+    loadTexture(state.textureIndex);
+    render();
+  }
+
+  function setMarkSourceIndex(nextIndex) {
+    const total = markOptions.length;
+    state.markSourceIndex = ((nextIndex % total) + total) % total;
+    updateMarkSourceDisplay();
+    loadMarkImage(state.markSourceIndex);
+  }
+
+  function getMarkById(id) {
+    return state.marks.find((mark) => mark.id === id) || null;
+  }
+
+  function updateMarkCanvasColorPicker() {
+    const selectedMark = getMarkById(state.selectedMarkId);
+    if (!selectedMark || state.exporting) {
+      els.markCanvasColorPicker.style.display = 'none';
+      return;
+    }
+
+    const controls = getMarkControls(selectedMark);
+    const anchor = controls.corners.nw;
+    const canvasRect = els.canvas.getBoundingClientRect();
+    const stageRect = els.paperStage.getBoundingClientRect();
+    const x = canvasRect.left + (anchor.x / state.width) * canvasRect.width - stageRect.left - 13;
+    const y = canvasRect.top + (anchor.y / state.height) * canvasRect.height - stageRect.top - 13;
+    const pickerSize = 26;
+    const clampedX = clamp(x, 0, Math.max(0, stageRect.width - pickerSize));
+    const clampedY = clamp(y, 0, Math.max(0, stageRect.height - pickerSize));
+
+    els.markCanvasColorPicker.style.left = `${clampedX}px`;
+    els.markCanvasColorPicker.style.top = `${clampedY}px`;
+    if (els.markCanvasColorPicker.value.toLowerCase() !== selectedMark.color.toLowerCase()) {
+      els.markCanvasColorPicker.value = selectedMark.color;
+    }
+    els.markCanvasColorPicker.style.display = 'block';
+  }
+
+  function updateMarkControls() {
+    updateMarkCanvasColorPicker();
+  }
+
+  function toggleSelectedOrDefaultMarkFlip() {
+    const selectedMark = getMarkById(state.selectedMarkId);
+    if (selectedMark) {
+      selectedMark.flipY = !selectedMark.flipY;
+      state.defaultMarkFlipY = selectedMark.flipY;
+    } else {
+      state.defaultMarkFlipY = !state.defaultMarkFlipY;
+    }
+    render();
+  }
+
+  function addMarkFromSource(assetIndex, randomize, dropPoint = null) {
+    if (state.marks.length >= maxMarks) {
+      const previous = els.addRandomMarkBtn.textContent;
+      els.addRandomMarkBtn.textContent = `max ${maxMarks} marks`;
+      window.setTimeout(() => {
+        els.addRandomMarkBtn.textContent = previous;
+      }, 1100);
+      return;
+    }
+
+    const scale = randomize ? (0.88 + Math.random() * 0.24) : 1;
+    const w = Math.round(state.width * 0.24 * scale);
+    const h = Math.round(state.height * 0.18 * scale);
+    const minX = -w + markMinVisible;
+    const maxX = state.width - markMinVisible;
+    const minY = -h + markMinVisible;
+    const maxY = state.height - markMinVisible;
+    const hasDropPoint = Boolean(dropPoint && Number.isFinite(dropPoint.x) && Number.isFinite(dropPoint.y));
+    const x = hasDropPoint
+      ? Math.round(dropPoint.x - w / 2)
+      : (randomize ? Math.round(minX + Math.random() * (maxX - minX)) : Math.round((state.width - w) / 2));
+    const y = hasDropPoint
+      ? Math.round(dropPoint.y - h / 2)
+      : (randomize ? Math.round(minY + Math.random() * (maxY - minY)) : Math.round((state.height - h) / 2));
+
+    const mark = {
+      id: `mk-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      assetIndex,
+      x: clamp(x, minX, maxX),
+      y: clamp(y, minY, maxY),
+      w: clamp(w, markMinW, state.width),
+      h: clamp(h, markMinH, state.height),
+      rotation: 0,
+      flipY: state.defaultMarkFlipY,
+      opacity: 1,
+      color: state.inkColor
+    };
+
+    state.marks.push(mark);
+    state.selectedMarkId = mark.id;
+    state.showTextUi = false;
+    updateMarkControls();
+    render();
+  }
+
+  function addRandomMark() {
+    const randomAssetIndex = Math.floor(Math.random() * markOptions.length);
+    addMarkFromSource(randomAssetIndex, true);
+  }
+
+  function addSelectedMark() {
+    addMarkFromSource(state.markSourceIndex, false);
+  }
+
+  function deleteAllMarks() {
+    state.marks = [];
+    state.selectedMarkId = null;
+    updateMarkControls();
+    render();
+  }
+
+  function addTextBox() {
+    if (state.textBoxes.length >= maxTextBoxes) {
+      const previous = els.addTextBoxBtn.textContent;
+      els.addTextBoxBtn.textContent = `max ${maxTextBoxes} text boxes`;
+      window.setTimeout(() => {
+        els.addTextBoxBtn.textContent = previous;
+      }, 1100);
+      return;
+    }
+
+    const box = createTextBox('');
+    state.textBoxes.push(box);
+    setSelectedTextBox(box.id, true);
+    renderTextList();
+    state.textEditing = true;
+    window.requestAnimationFrame(() => {
+      const input = els.textList.querySelector(`.text-item[data-box-id="${box.id}"] textarea`);
+      if (input) {
+        input.focus();
+      }
+    });
+    render();
+  }
+
+  function resetInteraction() {
+    releaseCanvasPointer(state.interaction.pointerId);
+    state.interaction.mode = 'none';
+    state.interaction.pointerId = null;
+    state.interaction.targetId = null;
+    state.interaction.handle = null;
+    state.interaction.moved = false;
+    state.snap.x = false;
+    state.snap.y = false;
+    els.canvas.classList.remove('dragging');
+  }
+
+  function hitCornerHandle(point, corners) {
+    const entries = [
+      ['nw', corners.nw],
+      ['ne', corners.ne],
+      ['se', corners.se],
+      ['sw', corners.sw]
+    ];
+
+    for (const [name, p] of entries) {
+      if (distance(point, p) <= handleSize) {
+        return name;
+      }
+    }
+    return null;
+  }
+
+  function hitTextControl(box, point) {
+    const controls = getTextControls(box);
+
+    if (distance(point, controls.close) <= handleSize) {
+      return { type: 'remove' };
+    }
+
+    if (distance(point, controls.rotate) <= handleSize) {
+      return { type: 'rotate' };
+    }
+
+    const corner = hitCornerHandle(point, controls.corners);
+    if (corner) {
+      return { type: 'resize', handle: corner };
+    }
+
+    if (pointInRotatedRect(point, box, box.rotation)) {
+      return { type: 'drag' };
+    }
+
+    return null;
+  }
+
+  function hitMarkControl(mark, point, includeClose = true) {
+    const controls = getMarkControls(mark);
+
+    if (includeClose && distance(point, controls.close) <= handleSize) {
+      return { type: 'remove' };
+    }
+
+    if (distance(point, controls.rotate) <= handleSize) {
+      return { type: 'rotate' };
+    }
+
+    const corner = hitCornerHandle(point, controls.corners);
+    if (corner) {
+      return { type: 'resize', handle: corner };
+    }
+
+    if (pointInRotatedRect(point, mark, mark.rotation)) {
+      return { type: 'drag' };
+    }
+
+    return null;
+  }
+
+  function resizeRectFromHandle(start, handle, dx, dy, minW, minH, keepInside = true) {
+    let x = start.x;
+    let y = start.y;
+    let w = start.w;
+    let h = start.h;
+
+    if (handle.includes('e')) {
+      w = start.w + dx;
+    }
+    if (handle.includes('s')) {
+      h = start.h + dy;
+    }
+    if (handle.includes('w')) {
+      x = start.x + dx;
+      w = start.w - dx;
+    }
+    if (handle.includes('n')) {
+      y = start.y + dy;
+      h = start.h - dy;
+    }
+
+    w = clamp(w, minW, state.width);
+    h = clamp(h, minH, state.height);
+    if (keepInside) {
+      x = clamp(x, 0, state.width - w);
+      y = clamp(y, 0, state.height - h);
+    } else {
+      const minX = -w + markMinVisible;
+      const maxX = state.width - markMinVisible;
+      const minY = -h + markMinVisible;
+      const maxY = state.height - markMinVisible;
+      x = clamp(x, minX, maxX);
+      y = clamp(y, minY, maxY);
+    }
+
+    return { x, y, w, h };
+  }
+
+  function handlePresetChange(value) {
+    if (value === 'custom') {
+      return;
+    }
+
+    const [w, h] = value.split('x').map(Number);
+    if (Number.isFinite(w) && Number.isFinite(h)) {
+      setCanvasSize(w, h);
+    }
+  }
+
+  function dataUrlToBytes(dataUrl) {
+    const base64 = dataUrl.split(',')[1] || '';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  function buildPdfFromJpeg(jpegBytes, imgW, imgH) {
+    const encoder = new TextEncoder();
+
+    const portrait = imgH >= imgW;
+    const pageW = portrait ? 595.28 : 841.89;
+    const pageH = portrait ? 841.89 : 595.28;
+
+    const scale = Math.min(pageW / imgW, pageH / imgH);
+    const drawW = imgW * scale;
+    const drawH = imgH * scale;
+    const drawX = (pageW - drawW) / 2;
+    const drawY = (pageH - drawH) / 2;
+
+    const content = `q\n${drawW.toFixed(3)} 0 0 ${drawH.toFixed(3)} ${drawX.toFixed(3)} ${drawY.toFixed(3)} cm\n/Im0 Do\nQ`;
+    const contentBytes = encoder.encode(content);
+
+    const parts = [];
+    let offset = 0;
+    const xref = [0, 0, 0, 0, 0, 0];
+
+    const pushBytes = (bytes) => {
+      parts.push(bytes);
+      offset += bytes.length;
+    };
+
+    const pushText = (text) => pushBytes(encoder.encode(text));
+
+    const addObj = (num, dict, streamBytes) => {
+      xref[num] = offset;
+      if (streamBytes) {
+        pushText(`${num} 0 obj\n${dict}\nstream\n`);
+        pushBytes(streamBytes);
+        pushText('\nendstream\nendobj\n');
+      } else {
+        pushText(`${num} 0 obj\n${dict}\nendobj\n`);
+      }
+    };
+
+    pushText('%PDF-1.3\n');
+    addObj(1, '<< /Type /Catalog /Pages 2 0 R >>', null);
+    addObj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', null);
+    addObj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`, null);
+    addObj(4, `<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>`, jpegBytes);
+    addObj(5, `<< /Length ${contentBytes.length} >>`, contentBytes);
+
+    const xrefOffset = offset;
+    pushText('xref\n0 6\n');
+    pushText('0000000000 65535 f \n');
+    for (let i = 1; i <= 5; i += 1) {
+      pushText(`${String(xref[i]).padStart(10, '0')} 00000 n \n`);
+    }
+    pushText(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+
+    return new Blob(parts, { type: 'application/pdf' });
+  }
+
+  function downloadDataUrl(dataUrl, filename) {
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+  }
+
+  function exportCanvas(format) {
+    const previousExporting = state.exporting;
+    const previousOpenTextColorBoxId = state.openTextColorBoxId;
+    state.exporting = true;
+    state.openTextColorBoxId = null;
+
+    try {
+      for (const box of state.textBoxes) {
+        ensureFontLoaded(box.font || state.font);
+      }
+      render();
+
+      const name = `typedup-${state.width}x${state.height}`;
+
+      if (format === 'png') {
+        downloadDataUrl(els.canvas.toDataURL('image/png'), `${name}.png`);
+      } else if (format === 'jpeg') {
+        downloadDataUrl(els.canvas.toDataURL('image/jpeg', 0.94), `${name}.jpg`);
+      } else if (format === 'pdf') {
+        const jpegData = els.canvas.toDataURL('image/jpeg', 0.95);
+        const bytes = dataUrlToBytes(jpegData);
+        const pdf = buildPdfFromJpeg(bytes, state.width, state.height);
+        downloadBlob(pdf, `${name}.pdf`);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      const previousText = els.downloadMain.textContent;
+      els.downloadMain.textContent = 'export failed';
+      window.setTimeout(() => {
+        els.downloadMain.textContent = previousText;
+      }, 1400);
+    } finally {
+      state.exporting = previousExporting;
+      state.openTextColorBoxId = previousOpenTextColorBoxId;
+      render();
+    }
+  }
+
+  function updateInteractionStartForTarget(targetRect, targetRotation, point) {
+    const center = rectCenter(targetRect);
+    const local = unrotatePoint(point, center.x, center.y, targetRotation);
+    state.interaction.startLocalX = local.x;
+    state.interaction.startLocalY = local.y;
+    state.interaction.startAngle = Math.atan2(point.y - center.y, point.x - center.x);
+  }
+
+  function bindCanvasInteraction() {
+    els.canvas.addEventListener('pointerdown', (event) => {
+      if (state.exporting) {
+        return;
+      }
+      if (typeof event.button === 'number' && event.button !== 0) {
+        return;
+      }
+
+      closeCanvasTextEditor();
+      state.openTextColorBoxId = null;
+
+      const point = getCanvasPoint(event);
+      state.interaction.pointerId = event.pointerId;
+      state.interaction.startX = point.x;
+      state.interaction.startY = point.y;
+      state.interaction.startRect = null;
+      state.interaction.targetId = null;
+      state.interaction.handle = null;
+      state.interaction.startRotation = 0;
+      state.interaction.moved = false;
+      state.snap.x = false;
+      state.snap.y = false;
+      state.textEditing = false;
+
+      const selectedMark = getMarkById(state.selectedMarkId);
+      if (selectedMark) {
+        const hit = hitMarkControl(selectedMark, point, true);
+        if (hit) {
+          if (hit.type === 'remove') {
+            state.marks = state.marks.filter((mark) => mark.id !== selectedMark.id);
+            state.selectedMarkId = null;
+            updateMarkControls();
+            render();
+            resetInteraction();
+            return;
+          }
+
+          state.interaction.targetId = selectedMark.id;
+          state.interaction.startRect = { ...selectedMark };
+          state.interaction.startRotation = selectedMark.rotation;
+          updateInteractionStartForTarget(selectedMark, selectedMark.rotation, point);
+          state.textEditing = false;
+
+          if (hit.type === 'rotate') {
+            state.interaction.mode = 'rotateMark';
+          } else if (hit.type === 'resize') {
+            state.interaction.mode = 'resizeMark';
+            state.interaction.handle = hit.handle;
+          } else {
+            state.interaction.mode = 'dragMark';
+          }
+
+          els.canvas.classList.add('dragging');
+          captureCanvasPointer(event.pointerId);
+          return;
+        }
+      }
+
+      for (let i = state.marks.length - 1; i >= 0; i -= 1) {
+        const mark = state.marks[i];
+        if (!pointInRotatedRect(point, mark, mark.rotation)) {
+          continue;
+        }
+
+        state.selectedMarkId = mark.id;
+        state.defaultMarkFlipY = Boolean(mark.flipY);
+        state.showTextUi = false;
+        state.interaction.mode = 'dragMark';
+        state.interaction.targetId = mark.id;
+        state.interaction.startRect = { ...mark };
+        state.interaction.startRotation = mark.rotation;
+        updateInteractionStartForTarget(mark, mark.rotation, point);
+        updateMarkControls();
+        state.textEditing = false;
+        els.canvas.classList.add('dragging');
+        captureCanvasPointer(event.pointerId);
+        render();
+        return;
+      }
+
+      const selectedBox = getSelectedTextBox();
+      if (selectedBox && state.showTextUi) {
+        const hit = hitTextControl(selectedBox, point);
+        if (hit) {
+          if (hit.type === 'remove') {
+            removeTextBox(selectedBox.id);
+            resetInteraction();
+            return;
+          }
+
+          state.selectedMarkId = null;
+          state.interaction.targetId = selectedBox.id;
+          state.interaction.startRect = { ...selectedBox };
+          state.interaction.startRotation = selectedBox.rotation;
+          updateInteractionStartForTarget(selectedBox, selectedBox.rotation, point);
+
+          if (hit.type === 'rotate') {
+            state.interaction.mode = 'rotateText';
+          } else if (hit.type === 'resize') {
+            state.interaction.mode = 'resizeText';
+            state.interaction.handle = hit.handle;
+          } else {
+            state.interaction.mode = 'dragText';
+          }
+
+          setSelectedTextBox(selectedBox.id, true);
+          state.textEditing = false;
+          els.canvas.classList.add('dragging');
+          captureCanvasPointer(event.pointerId);
+          render();
+          return;
+        }
+      }
+
+      for (let i = state.textBoxes.length - 1; i >= 0; i -= 1) {
+        const box = state.textBoxes[i];
+        if (!pointInRotatedRect(point, box, box.rotation)) {
+          continue;
+        }
+
+        state.interaction.mode = 'dragText';
+        state.interaction.targetId = box.id;
+        state.interaction.startRect = { ...box };
+        state.interaction.startRotation = box.rotation;
+        updateInteractionStartForTarget(box, box.rotation, point);
+        setSelectedTextBox(box.id, true);
+        state.textEditing = false;
+        els.canvas.classList.add('dragging');
+        captureCanvasPointer(event.pointerId);
+        render();
+        return;
+      }
+
+      state.showTextUi = false;
+      state.selectedMarkId = null;
+      state.textEditing = false;
+      updateMarkControls();
+      render();
+      resetInteraction();
+    });
+
+    els.canvas.addEventListener('pointermove', (event) => {
+      if (event.pointerId !== state.interaction.pointerId) {
+        return;
+      }
+
+      const mode = state.interaction.mode;
+      if (mode === 'none') {
+        return;
+      }
+
+      const point = getCanvasPoint(event);
+      const dx = point.x - state.interaction.startX;
+      const dy = point.y - state.interaction.startY;
+
+      if (mode === 'dragText') {
+        const box = getTextBoxById(state.interaction.targetId);
+        const start = state.interaction.startRect;
+        if (!box || !start) {
+          return;
+        }
+
+        const moved = Math.hypot(dx, dy) > editClickThreshold;
+        if (!moved && !state.interaction.moved) {
+          return;
+        }
+        state.interaction.moved = true;
+
+        let x = clamp(start.x + dx, 0, state.width - start.w);
+        let y = clamp(start.y + dy, 0, state.height - start.h);
+
+        const centerX = x + start.w / 2;
+        const centerY = y + start.h / 2;
+        state.snap.x = false;
+        state.snap.y = false;
+
+        if (Math.abs(centerX - state.width / 2) <= snapThreshold) {
+          x = Math.round(state.width / 2 - start.w / 2);
+          state.snap.x = true;
+        }
+        if (Math.abs(centerY - state.height / 2) <= snapThreshold) {
+          y = Math.round(state.height / 2 - start.h / 2);
+          state.snap.y = true;
+        }
+
+        box.x = x;
+        box.y = y;
+        clampTextBoxToCanvas(box);
+        render();
+        return;
+      }
+
+      if (mode === 'resizeText') {
+        const box = getTextBoxById(state.interaction.targetId);
+        const start = state.interaction.startRect;
+        if (!box || !start) {
+          return;
+        }
+
+        const center = rectCenter(start);
+        const local = unrotatePoint(point, center.x, center.y, state.interaction.startRotation);
+        const localDx = local.x - state.interaction.startLocalX;
+        const localDy = local.y - state.interaction.startLocalY;
+
+        const resized = resizeRectFromHandle(start, state.interaction.handle, localDx, localDy, textBoxMinW, textBoxMinH);
+        box.x = resized.x;
+        box.y = resized.y;
+        box.w = resized.w;
+        box.h = resized.h;
+        clampTextBoxToCanvas(box);
+        render();
+        return;
+      }
+
+      if (mode === 'rotateText') {
+        const box = getTextBoxById(state.interaction.targetId);
+        if (!box) {
+          return;
+        }
+        const center = rectCenter(box);
+        const angle = Math.atan2(point.y - center.y, point.x - center.x);
+        box.rotation = snapRightAngle(state.interaction.startRotation + (angle - state.interaction.startAngle));
+        render();
+        return;
+      }
+
+      if (mode === 'dragMark') {
+        const mark = getMarkById(state.interaction.targetId);
+        const start = state.interaction.startRect;
+        if (!mark || !start) {
+          return;
+        }
+
+        mark.x = start.x + dx;
+        mark.y = start.y + dy;
+        clampMarkPosition(mark);
+        render();
+        return;
+      }
+
+      if (mode === 'resizeMark') {
+        const mark = getMarkById(state.interaction.targetId);
+        const start = state.interaction.startRect;
+        if (!mark || !start) {
+          return;
+        }
+
+        const center = rectCenter(start);
+        const local = unrotatePoint(point, center.x, center.y, state.interaction.startRotation);
+        const localDx = local.x - state.interaction.startLocalX;
+        const localDy = local.y - state.interaction.startLocalY;
+
+        const resized = resizeRectFromHandle(start, state.interaction.handle, localDx, localDy, markMinW, markMinH, false);
+        mark.x = resized.x;
+        mark.y = resized.y;
+        mark.w = resized.w;
+        mark.h = resized.h;
+        render();
+        return;
+      }
+
+      if (mode === 'rotateMark') {
+        const mark = getMarkById(state.interaction.targetId);
+        if (!mark) {
+          return;
+        }
+        const center = rectCenter(mark);
+        const angle = Math.atan2(point.y - center.y, point.x - center.x);
+        mark.rotation = snapRightAngle(state.interaction.startRotation + (angle - state.interaction.startAngle));
+        render();
+      }
+    });
+
+    const endInteraction = (event) => {
+      if (state.interaction.pointerId !== null && event.pointerId !== state.interaction.pointerId) {
+        return;
+      }
+
+      const mode = state.interaction.mode;
+      const targetId = state.interaction.targetId;
+      const moved = state.interaction.moved;
+      resetInteraction();
+      if (mode === 'dragText' && targetId && !moved) {
+        setSelectedTextBox(targetId, false);
+        openCanvasTextEditor(targetId, true);
+        return;
+      }
+      render();
+    };
+
+    els.canvas.addEventListener('pointerup', endInteraction);
+    els.canvas.addEventListener('pointercancel', endInteraction);
+  }
+
+  function bindCanvasTyping() {
+    els.canvas.addEventListener('keydown', (event) => {
+      if (state.exporting || state.canvasEditor.active || !state.textEditing || state.selectedMarkId) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      const box = getSelectedTextBox();
+      if (!box) {
+        return;
+      }
+
+      let changed = false;
+      if (event.key === 'Backspace') {
+        event.preventDefault();
+        if (box.text.length > 0) {
+          box.text = box.text.slice(0, -1);
+          changed = true;
+        }
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        box.text += '\n';
+        changed = true;
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        box.text += '  ';
+        changed = true;
+      } else if (event.key.length === 1) {
+        box.text += event.key;
+        changed = true;
+      }
+
+      if (changed) {
+        syncTextListValue(box.id);
+        render();
+      }
+    });
+  }
+
+  function bindCanvasTextEditor() {
+    els.canvasTextEditor.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+      const box = getTextBoxById(state.canvasEditor.boxId);
+      if (box) {
+        setSelectedTextBox(box.id, false);
+      }
+    });
+
+    els.canvasTextEditor.addEventListener('focus', () => {
+      state.textEditing = true;
+    });
+
+    els.canvasTextEditor.addEventListener('blur', () => {
+      if (!state.canvasEditor.active) {
+        return;
+      }
+      closeCanvasTextEditor();
+      render();
+    });
+
+    els.canvasTextEditor.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeCanvasTextEditor();
+        render();
+        return;
+      }
+      event.stopPropagation();
+    });
+
+    els.canvasTextEditor.addEventListener('input', () => {
+      const box = getTextBoxById(state.canvasEditor.boxId);
+      if (!box) {
+        return;
+      }
+      box.text = els.canvasTextEditor.value;
+      syncTextListValue(box.id);
+      render();
+    });
+  }
+
+  function bindTabs() {
+    for (const tab of els.tabs) {
+      tab.addEventListener('click', () => {
+        setActiveSection(tab.dataset.section);
+      });
+    }
+  }
+
+  function bindPanelToggle() {
+    els.panelEdgeToggle.addEventListener('click', () => {
+      setPanelOpen(!state.panelOpen);
+    });
+  }
+
+  function bindTextSection() {
+    els.addTextBoxBtn.addEventListener('click', () => {
+      addTextBox();
+    });
+  }
+
+  function bindCanvasAlignHud() {
+    for (const btn of els.canvasAlignButtons) {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const box = getSelectedTextBox();
+        if (!box) {
+          return;
+        }
+        box.align = btn.dataset.align || 'left';
+        renderTextList();
+        render();
+      });
+    }
+  }
+
+  function bindCanvasSection() {
+    els.applyCanvasSize.addEventListener('click', () => {
+      state.canvasPresetValue = 'custom';
+      renderCanvasPresetButtons();
+      updateCanvasPresetUi();
+      setCanvasSize(Number(els.canvasWidth.value || state.width), Number(els.canvasHeight.value || state.height));
+    });
+  }
+
+  function bindPaperSection() {
+    els.paperPrev.addEventListener('click', () => {
+      setPaperIndex(state.paperIndex - 1);
+    });
+
+    els.paperNext.addEventListener('click', () => {
+      setPaperIndex(state.paperIndex + 1);
+    });
+
+    const applyCustomPaper = () => {
+      state.paperColor = els.paperCustom.value;
+      state.paperIsCustom = true;
+      updatePaperDisplay(null, state.paperColor);
+      render();
+    };
+
+    els.paperCustomToggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      els.paperCustom.click();
+    });
+
+    els.paperCustom.addEventListener('input', applyCustomPaper);
+    els.paperCustom.addEventListener('change', applyCustomPaper);
+
+    els.texturePrev.addEventListener('click', () => setTextureIndex(state.textureIndex - 1));
+    els.textureNext.addEventListener('click', () => setTextureIndex(state.textureIndex + 1));
+
+    els.textureAlpha.addEventListener('input', () => {
+      state.textureBlend = clamp((Number(els.textureAlpha.value) || 0) / 100, 0, 1);
+      render();
+    });
+  }
+
+  function bindEffectsSection() {
+    const sliderToUnit = (slider, fallback = 0) => {
+      const min = Number(slider.min || 0);
+      const max = Number(slider.max || 100);
+      const value = clamp(Number(slider.value) || fallback, min, max);
+      slider.value = String(value);
+      return (value - min) / Math.max(1, max - min);
+    };
+
+    els.doubleAmount.addEventListener('input', () => {
+      state.effects.doubleAmount = sliderToUnit(els.doubleAmount);
+      render();
+    });
+
+    els.fadeAmount.addEventListener('input', () => {
+      state.effects.fadeAmount = sliderToUnit(els.fadeAmount);
+      render();
+    });
+
+    els.fadeOpacity.addEventListener('input', () => {
+      state.effects.fadeOpacity = sliderToUnit(els.fadeOpacity, 80);
+      render();
+    });
+
+    els.jogAmount.addEventListener('input', () => {
+      state.effects.jogAmount = sliderToUnit(els.jogAmount);
+      render();
+    });
+
+    els.jogMidline.addEventListener('change', () => {
+      state.effects.jogMidline = els.jogMidline.checked;
+      render();
+    });
+
+    els.blurAmount.addEventListener('input', () => {
+      state.effects.blurAmount = clamp(Number(els.blurAmount.value) || 0, 0, 100);
+      render();
+    });
+
+    els.vignetteEnabled.addEventListener('change', () => {
+      state.effects.vignetteEnabled = els.vignetteEnabled.checked;
+      updateVignetteControlsVisibility();
+      render();
+    });
+
+    els.vignetteAmount.addEventListener('input', () => {
+      state.effects.vignetteAmount = clamp((Number(els.vignetteAmount.value) || 0) / 100, 0, 1);
+      render();
+    });
+
+    els.effectsShuffle.addEventListener('click', () => {
+      state.effects.doubleSeed = seed();
+      state.effects.fadeSeed = seed();
+      state.effects.jogSeed = seed();
+      render();
+    });
+  }
+
+  function bindMarksSection() {
+    els.markPrev.addEventListener('click', () => setMarkSourceIndex(state.markSourceIndex - 1));
+    els.markNext.addEventListener('click', () => setMarkSourceIndex(state.markSourceIndex + 1));
+    els.addRandomMarkBtn.addEventListener('click', () => addRandomMark());
+    els.markName.addEventListener('click', () => addSelectedMark());
+    els.markName.addEventListener('dragstart', (event) => {
+      state.draggingMarkSource = state.markSourceIndex;
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain', String(state.markSourceIndex));
+      }
+    });
+    els.markName.addEventListener('dragend', () => {
+      state.draggingMarkSource = null;
+    });
+    els.markFlipBtn.addEventListener('click', () => toggleSelectedOrDefaultMarkFlip());
+    els.deleteAllMarksBtn.addEventListener('click', () => deleteAllMarks());
+    els.canvas.addEventListener('dragover', (event) => {
+      if (state.draggingMarkSource === null) {
+        return;
+      }
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'copy';
+      }
+    });
+    els.canvas.addEventListener('drop', (event) => {
+      if (state.draggingMarkSource === null) {
+        return;
+      }
+      event.preventDefault();
+      const point = getCanvasPoint(event);
+      const sourceIndex = clamp(Math.round(Number(state.draggingMarkSource) || 0), 0, markOptions.length - 1);
+      addMarkFromSource(sourceIndex, false, point);
+      state.draggingMarkSource = null;
+    });
+
+    const applyMarkColor = () => {
+      const mark = getMarkById(state.selectedMarkId);
+      if (mark) {
+        mark.color = els.markCanvasColorPicker.value;
+        render();
+      }
+    };
+
+    els.markCanvasColorPicker.addEventListener('input', applyMarkColor);
+    els.markCanvasColorPicker.addEventListener('change', applyMarkColor);
+  }
+
+  function bindBottomActions() {
+    els.downloadMain.addEventListener('click', () => {
+      els.formatRow.classList.toggle('open');
+    });
+
+    for (const btn of els.formatBtns) {
+      btn.addEventListener('click', () => {
+        exportCanvas(btn.dataset.format);
+        els.formatRow.classList.remove('open');
+      });
+    }
+
+    els.themeToggle.addEventListener('click', () => {
+      state.darkMode = !state.darkMode;
+      syncTheme();
+    });
+
+    els.shareBtn.addEventListener('click', async () => {
+      const url = window.location.href;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'typedup', url });
+          return;
+        } catch (error) {
+          // fallback below
+        }
+      }
+
+      try {
+        await navigator.clipboard.writeText(url);
+        els.shareBtn.textContent = 'link copied';
+      } catch (error) {
+        els.shareBtn.textContent = 'copy failed';
+      }
+
+      window.setTimeout(() => {
+        els.shareBtn.textContent = 'share';
+      }, 1400);
+    });
+
+    els.projectsBtn.addEventListener('click', () => {
+      const win = window.open('https://samiainstevens.github.io/myprojects/', '_blank', 'noopener');
+      if (!win) {
+        window.location.href = 'https://samiainstevens.github.io/myprojects/';
+      }
+    });
+  }
+
+  function bindResize() {
+    window.addEventListener('resize', () => {
+      positionPanelEdgeToggle();
+      updateCanvasDisplay();
+      render();
+    });
+  }
+
+  function initSelects() {
+    renderCanvasPresetButtons();
+    els.doubleAmount.value = String(Math.round(state.effects.doubleAmount * 100));
+    els.fadeAmount.value = String(Math.round(state.effects.fadeAmount * 100));
+    els.fadeOpacity.value = String(Math.round(state.effects.fadeOpacity * 100));
+    els.jogAmount.value = String(Math.round(state.effects.jogAmount * 100));
+    els.jogMidline.checked = state.effects.jogMidline;
+    els.blurAmount.value = String(state.effects.blurAmount);
+    els.vignetteEnabled.checked = state.effects.vignetteEnabled;
+    els.vignetteAmount.value = String(Math.round(state.effects.vignetteAmount * 100));
+    els.paperCustom.value = state.paperColor;
+    els.textureAlpha.value = String(Math.round(state.textureBlend * 100));
+    updatePaperDisplay();
+    updateTextureLabel();
+    updateTextureControlsVisibility();
+    updateVignetteControlsVisibility();
+    updateCanvasPresetUi();
+  }
+
+  function bootstrap() {
+    initSelects();
+
+    const firstBox = createTextBox('');
+    state.textBoxes.push(firstBox);
+    state.selectedTextBoxId = firstBox.id;
+    renderTextList();
+
+    updateMarkSourceDisplay();
+    updateMarkControls();
+
+    bindTabs();
+    bindPanelToggle();
+    bindTextSection();
+    bindCanvasAlignHud();
+    bindCanvasSection();
+    bindPaperSection();
+    bindEffectsSection();
+    bindMarksSection();
+    bindBottomActions();
+    bindCanvasInteraction();
+    bindCanvasTextEditor();
+    bindCanvasTyping();
+    bindResize();
+
+    setPanelOpen(true);
+    setActiveSection('text');
+    syncTheme();
+    setCanvasSize(state.width, state.height);
+    ensureFontLoaded(state.font).then(() => render());
+    warmFontLoads();
+
+    loadTexture(1);
+    loadTexture(2);
+    loadTexture(3);
+    loadMarkImage(0);
+    loadMarkImage(1);
+
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        render();
+      });
+    }
+  }
+
+  bootstrap();
+})();
+</script>
+</body>
+</html>
