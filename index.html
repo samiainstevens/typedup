@@ -9,52 +9,72 @@
 <style>
   @font-face {
     font-family: "Uncle Typewriter";
-    src: url("fonts/uncle_typewriter/UNCLETYP.TTF") format("truetype");
+    src:
+      url("fonts/uncle_typewriter/UNCLETYP.TTF") format("truetype"),
+      url("UNCLETYP.TTF") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Carbon Type";
-    src: url("fonts/carbon.ttf") format("truetype");
+    src:
+      url("fonts/carbon.ttf") format("truetype"),
+      url("carbon.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Another Typewriter";
-    src: url("fonts/another_typewriter/atwriter.ttf") format("truetype");
+    src:
+      url("fonts/another_typewriter/atwriter.ttf") format("truetype"),
+      url("atwriter.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Draconian Typewriter";
-    src: url("fonts/DraconianTypewritter001.ttf") format("truetype");
+    src:
+      url("fonts/DraconianTypewritter001.ttf") format("truetype"),
+      url("DraconianTypewritter001.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Junkos Typewriter";
-    src: url("fonts/junkos_typewriter/junkos typewriter.ttf") format("truetype");
+    src:
+      url("fonts/junkos_typewriter/junkos typewriter.ttf") format("truetype"),
+      url("junkos typewriter.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Kingthings Trypewriter";
-    src: url("fonts/kingthings_trypewriter/Kingthings Trypewriter 2.ttf") format("truetype");
+    src:
+      url("fonts/kingthings_trypewriter/Kingthings Trypewriter 2.ttf") format("truetype"),
+      url("Kingthings Trypewriter 2.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Veteran Typewriter";
-    src: url("fonts/veteran_typewriter/veteran typewriter.ttf") format("truetype");
+    src:
+      url("fonts/veteran_typewriter/veteran typewriter.ttf") format("truetype"),
+      url("veteran typewriter.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "1942 Report";
-    src: url("fonts/1942_report/1942.ttf") format("truetype");
+    src:
+      url("fonts/1942_report/1942.ttf") format("truetype"),
+      url("1942.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Old Newspaper";
-    src: url("fonts/OldNewspaperTypes.ttf") format("truetype");
+    src:
+      url("fonts/OldNewspaperTypes.ttf") format("truetype"),
+      url("OldNewspaperTypes.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Stamp";
-    src: url("fonts/Stamp.ttf") format("truetype");
+    src:
+      url("fonts/Stamp.ttf") format("truetype"),
+      url("Stamp.ttf") format("truetype");
     font-display: swap;
   }
 
@@ -1087,7 +1107,7 @@
 
           <div id="textureIntensityWrap" class="hidden">
             <label for="textureAlpha">texture intensity</label>
-            <input id="textureAlpha" type="range" min="0" max="100" step="1" value="45">
+            <input id="textureAlpha" type="range" min="0" max="100" step="1" value="62">
           </div>
         </section>
 
@@ -1378,7 +1398,7 @@
     paperColor: paperOptions[1].value,
     paperIsCustom: false,
     textureIndex: 0,
-    textureBlend: 0.45,
+    textureBlend: 0.62,
 
     effects: {
       doubleAmount: 0.10,
@@ -1481,22 +1501,111 @@
     return textureOptions[state.textureIndex] || textureOptions[0];
   }
 
+  function buildAssetCandidates(assetPath) {
+    const normalized = String(assetPath || '')
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/^\.\/+/, '')
+      .replace(/^\/+/, '');
+
+    if (!normalized) {
+      return [];
+    }
+
+    const filename = normalized.split('/').pop();
+    const candidates = [];
+    const addCandidate = (value) => {
+      if (value && !candidates.includes(value)) {
+        candidates.push(value);
+      }
+    };
+
+    addCandidate(normalized);
+    addCandidate(`./${normalized}`);
+
+    if (filename && filename !== normalized) {
+      addCandidate(filename);
+      addCandidate(`./${filename}`);
+    }
+
+    return candidates;
+  }
+
+  function loadImageWithFallback(assetPath, cache, onStateChange = null) {
+    if (!assetPath) {
+      return null;
+    }
+
+    if (cache.has(assetPath)) {
+      return cache.get(assetPath);
+    }
+
+    const candidates = buildAssetCandidates(assetPath);
+    if (!candidates.length) {
+      return null;
+    }
+
+    const image = new Image();
+    image.decoding = 'async';
+
+    const entry = {
+      image,
+      status: 'loading',
+      requestedSrc: assetPath,
+      resolvedSrc: null,
+      candidates,
+      candidateIndex: 0
+    };
+    cache.set(assetPath, entry);
+
+    const notify = () => {
+      if (typeof onStateChange === 'function') {
+        onStateChange(entry);
+      }
+    };
+
+    const tryNext = () => {
+      if (entry.candidateIndex >= entry.candidates.length) {
+        entry.status = 'error';
+        entry.resolvedSrc = null;
+        image.onload = null;
+        image.onerror = null;
+        notify();
+        return;
+      }
+
+      const candidate = entry.candidates[entry.candidateIndex];
+      entry.candidateIndex += 1;
+
+      image.onload = () => {
+        entry.status = 'ready';
+        entry.resolvedSrc = candidate;
+        image.onerror = null;
+        notify();
+      };
+
+      image.onerror = () => {
+        tryNext();
+      };
+
+      image.src = candidate;
+    };
+
+    tryNext();
+    notify();
+    return entry;
+  }
+
   function loadTexture(index) {
     const texture = textureOptions[index];
     if (!texture || !texture.src) {
       return null;
     }
 
-    if (textureCache.has(texture.src)) {
-      return textureCache.get(texture.src);
-    }
-
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = texture.src;
-    image.onload = () => render();
-    textureCache.set(texture.src, image);
-    return image;
+    return loadImageWithFallback(texture.src, textureCache, () => {
+      updateTextureLabel();
+      render();
+    });
   }
 
   function loadMarkImage(index) {
@@ -1505,16 +1614,13 @@
       return null;
     }
 
-    if (markCache.has(mark.src)) {
-      return markCache.get(mark.src);
-    }
-
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = mark.src;
-    image.onload = () => render();
-    markCache.set(mark.src, image);
-    return image;
+    return loadImageWithFallback(mark.src, markCache, () => {
+      const current = markOptions[state.markSourceIndex];
+      if (current && current.src === mark.src) {
+        updateMarkSourceDisplay();
+      }
+      render();
+    });
   }
 
   function ensureFontLoaded(fontValue) {
@@ -1552,8 +1658,27 @@
     tick();
   }
 
+  function textureStatusLabel(status) {
+    if (status === 'loading') {
+      return 'loading...';
+    }
+    if (status === 'error') {
+      return 'missing file';
+    }
+    return '';
+  }
+
   function updateTextureLabel() {
-    els.textureName.textContent = getTexture().label;
+    const texture = getTexture();
+    if (!texture || !texture.src) {
+      els.textureName.textContent = texture ? texture.label : 'no texture';
+      return;
+    }
+
+    const entry = textureCache.get(texture.src);
+    const status = entry ? entry.status : 'loading';
+    const suffix = textureStatusLabel(status);
+    els.textureName.textContent = suffix ? `${texture.label} (${suffix})` : texture.label;
   }
 
   function updateTextureControlsVisibility() {
@@ -1653,7 +1778,21 @@
       els.markPreview.removeAttribute('src');
       return;
     }
-    els.markPreview.src = source.src;
+
+    const entry = loadMarkImage(state.markSourceIndex);
+    if (entry && entry.status === 'ready' && entry.resolvedSrc) {
+      if (els.markPreview.getAttribute('src') !== entry.resolvedSrc) {
+        els.markPreview.src = entry.resolvedSrc;
+      }
+    } else if (entry && entry.status === 'error') {
+      els.markPreview.removeAttribute('src');
+    } else {
+      const fallback = buildAssetCandidates(source.src)[0];
+      if (fallback && els.markPreview.getAttribute('src') !== fallback) {
+        els.markPreview.src = fallback;
+      }
+    }
+
     updateMarkFlipUi();
   }
 
@@ -2526,8 +2665,13 @@
       return;
     }
 
-    const image = loadTexture(state.textureIndex);
-    if (!image || !image.complete) {
+    const textureEntry = loadTexture(state.textureIndex);
+    if (!textureEntry || textureEntry.status !== 'ready') {
+      return;
+    }
+
+    const image = textureEntry.image;
+    if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) {
       return;
     }
 
@@ -2535,9 +2679,9 @@
     const rotateForCover = shouldRotateTextureForCover(image, state.width, state.height);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.filter = 'grayscale(1) contrast(1.62) brightness(1.04)';
+    ctx.filter = 'grayscale(1) contrast(1.9) brightness(1.02)';
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = state.textureBlend;
+    ctx.globalAlpha = clamp(state.textureBlend * 1.08, 0, 1);
 
     if (rotateForCover) {
       ctx.translate(state.width * 0.5, state.height * 0.5);
@@ -2672,8 +2816,13 @@
 
   function drawMarks() {
     for (const mark of state.marks) {
-      const image = loadMarkImage(mark.assetIndex);
-      if (!image || !image.complete) {
+      const markEntry = loadMarkImage(mark.assetIndex);
+      if (!markEntry || markEntry.status !== 'ready') {
+        continue;
+      }
+
+      const image = markEntry.image;
+      if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) {
         continue;
       }
 
@@ -3038,9 +3187,9 @@
   function setTextureIndex(nextIndex) {
     const total = textureOptions.length;
     state.textureIndex = ((nextIndex % total) + total) % total;
+    loadTexture(state.textureIndex);
     updateTextureLabel();
     updateTextureControlsVisibility();
-    loadTexture(state.textureIndex);
     render();
   }
 
@@ -3048,7 +3197,6 @@
     const total = markOptions.length;
     state.markSourceIndex = ((nextIndex % total) + total) % total;
     updateMarkSourceDisplay();
-    loadMarkImage(state.markSourceIndex);
   }
 
   function getMarkById(id) {
