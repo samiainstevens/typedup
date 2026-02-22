@@ -10,71 +10,71 @@
   @font-face {
     font-family: "Uncle Typewriter";
     src:
-      url("fonts/uncle_typewriter/UNCLETYP.TTF") format("truetype"),
-      url("UNCLETYP.TTF") format("truetype");
+      url("UNCLETYP.TTF") format("truetype"),
+      url("fonts/uncle_typewriter/UNCLETYP.TTF") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Carbon Type";
     src:
-      url("fonts/carbon.ttf") format("truetype"),
-      url("carbon.ttf") format("truetype");
+      url("carbon.ttf") format("truetype"),
+      url("fonts/carbon.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Another Typewriter";
     src:
-      url("fonts/another_typewriter/atwriter.ttf") format("truetype"),
-      url("atwriter.ttf") format("truetype");
+      url("atwriter.ttf") format("truetype"),
+      url("fonts/another_typewriter/atwriter.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Draconian Typewriter";
     src:
-      url("fonts/DraconianTypewritter001.ttf") format("truetype"),
-      url("DraconianTypewritter001.ttf") format("truetype");
+      url("DraconianTypewritter001.ttf") format("truetype"),
+      url("fonts/DraconianTypewritter001.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Junkos Typewriter";
     src:
-      url("fonts/junkos_typewriter/junkos typewriter.ttf") format("truetype"),
-      url("junkos typewriter.ttf") format("truetype");
+      url("junkos typewriter.ttf") format("truetype"),
+      url("fonts/junkos_typewriter/junkos typewriter.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Kingthings Trypewriter";
     src:
-      url("fonts/kingthings_trypewriter/Kingthings Trypewriter 2.ttf") format("truetype"),
-      url("Kingthings Trypewriter 2.ttf") format("truetype");
+      url("Kingthings Trypewriter 2.ttf") format("truetype"),
+      url("fonts/kingthings_trypewriter/Kingthings Trypewriter 2.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Veteran Typewriter";
     src:
-      url("fonts/veteran_typewriter/veteran typewriter.ttf") format("truetype"),
-      url("veteran typewriter.ttf") format("truetype");
+      url("veteran typewriter.ttf") format("truetype"),
+      url("fonts/veteran_typewriter/veteran typewriter.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "1942 Report";
     src:
-      url("fonts/1942_report/1942.ttf") format("truetype"),
-      url("1942.ttf") format("truetype");
+      url("1942.ttf") format("truetype"),
+      url("fonts/1942_report/1942.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Old Newspaper";
     src:
-      url("fonts/OldNewspaperTypes.ttf") format("truetype"),
-      url("OldNewspaperTypes.ttf") format("truetype");
+      url("OldNewspaperTypes.ttf") format("truetype"),
+      url("fonts/OldNewspaperTypes.ttf") format("truetype");
     font-display: swap;
   }
   @font-face {
     font-family: "Stamp";
     src:
-      url("fonts/Stamp.ttf") format("truetype"),
-      url("Stamp.ttf") format("truetype");
+      url("Stamp.ttf") format("truetype"),
+      url("fonts/Stamp.ttf") format("truetype");
     font-display: swap;
   }
 
@@ -1214,29 +1214,29 @@
 
   const textureOptions = [
     { id: 'none', label: 'no texture', src: null },
-    { id: '1', label: 'paper 1', src: 'paper textures/4.jpg' },
-    { id: '2', label: 'paper 2', src: 'paper textures/2.jpg' },
-    { id: '3', label: 'paper 3', src: 'paper textures/3.jpg' },
-    { id: '4', label: 'paper 4', src: 'paper textures/1.jpg' },
-    { id: '5', label: 'paper 5', src: 'paper textures/5.jpg' },
-    { id: '6', label: 'paper 6', src: 'paper textures/6.jpg' },
-    { id: '7', label: 'paper 7', src: 'paper textures/7.jpg' },
-    { id: '8', label: 'paper 8', src: 'paper textures/8.jpg' },
-    { id: '9', label: 'paper 9', src: 'paper textures/9.jpg' },
-    { id: '10', label: 'paper 10', src: 'paper textures/10.jpg' },
-    { id: '11', label: 'paper 11', src: 'paper textures/11.jpg' },
-    { id: '12', label: 'paper 12', src: 'paper textures/12.jpg' }
+    { id: '1', label: 'paper 1', src: '4.jpg', fallbacks: ['paper textures/4.jpg'] },
+    { id: '2', label: 'paper 2', src: '2.jpg', fallbacks: ['paper textures/2.jpg'] },
+    { id: '3', label: 'paper 3', src: '3.jpg', fallbacks: ['paper textures/3.jpg'] },
+    { id: '4', label: 'paper 4', src: '1.jpg', fallbacks: ['paper textures/1.jpg'] },
+    { id: '5', label: 'paper 5', src: '5.jpg', fallbacks: ['paper textures/5.jpg'] },
+    { id: '6', label: 'paper 6', src: '6.jpg', fallbacks: ['paper textures/6.jpg'] },
+    { id: '7', label: 'paper 7', src: '7.jpg', fallbacks: ['paper textures/7.jpg'] },
+    { id: '8', label: 'paper 8', src: '8.jpg', fallbacks: ['paper textures/8.jpg'] },
+    { id: '9', label: 'paper 9', src: '9.jpg', fallbacks: ['paper textures/9.jpg'] },
+    { id: '10', label: 'paper 10', src: '10.jpg', fallbacks: ['paper textures/10.jpg'] },
+    { id: '11', label: 'paper 11', src: '11.jpg', fallbacks: ['paper textures/11.jpg'] },
+    { id: '12', label: 'paper 12', src: '12.jpg', fallbacks: ['paper textures/12.jpg'] }
   ];
 
   const markOptions = [
-    { label: '1', src: 'effects/effect1.png' },
-    { label: '2', src: 'effects/effect2.png' },
-    { label: '3', src: 'effects/effect3.png' },
-    { label: '4', src: 'effects/effect4.png' },
-    { label: '5', src: 'effects/effect5.png' },
-    { label: '6', src: 'effects/effect6.png' },
-    { label: '7', src: 'effects/effect7.png' },
-    { label: '8', src: 'effects/effect8.png' }
+    { label: '1', src: 'effect1.png', fallbacks: ['effects/effect1.png'] },
+    { label: '2', src: 'effect2.png', fallbacks: ['effects/effect2.png'] },
+    { label: '3', src: 'effect3.png', fallbacks: ['effects/effect3.png'] },
+    { label: '4', src: 'effect4.png', fallbacks: ['effects/effect4.png'] },
+    { label: '5', src: 'effect5.png', fallbacks: ['effects/effect5.png'] },
+    { label: '6', src: 'effect6.png', fallbacks: ['effects/effect6.png'] },
+    { label: '7', src: 'effect7.png', fallbacks: ['effects/effect7.png'] },
+    { label: '8', src: 'effect8.png', fallbacks: ['effects/effect8.png'] }
   ];
 
   const fontOptions = [
@@ -1501,7 +1501,7 @@
     return textureOptions[state.textureIndex] || textureOptions[0];
   }
 
-  function buildAssetCandidates(assetPath) {
+  function buildAssetCandidates(assetPath, extraCandidates = []) {
     const normalized = String(assetPath || '')
       .trim()
       .replace(/\\/g, '/')
@@ -1528,10 +1528,20 @@
       addCandidate(`./${filename}`);
     }
 
+    for (const extra of extraCandidates) {
+      const normalizedExtra = String(extra || '')
+        .trim()
+        .replace(/\\/g, '/')
+        .replace(/^\.\/+/, '')
+        .replace(/^\/+/, '');
+      addCandidate(normalizedExtra);
+      addCandidate(`./${normalizedExtra}`);
+    }
+
     return candidates;
   }
 
-  function loadImageWithFallback(assetPath, cache, onStateChange = null) {
+  function loadImageWithFallback(assetPath, cache, onStateChange = null, extraCandidates = []) {
     if (!assetPath) {
       return null;
     }
@@ -1540,7 +1550,7 @@
       return cache.get(assetPath);
     }
 
-    const candidates = buildAssetCandidates(assetPath);
+    const candidates = buildAssetCandidates(assetPath, extraCandidates);
     if (!candidates.length) {
       return null;
     }
@@ -1570,6 +1580,7 @@
         entry.resolvedSrc = null;
         image.onload = null;
         image.onerror = null;
+        console.warn('Asset failed to load:', entry.requestedSrc, 'candidates:', entry.candidates);
         notify();
         return;
       }
@@ -1605,7 +1616,7 @@
     return loadImageWithFallback(texture.src, textureCache, () => {
       updateTextureLabel();
       render();
-    });
+    }, texture.fallbacks || []);
   }
 
   function loadMarkImage(index) {
@@ -1620,7 +1631,7 @@
         updateMarkSourceDisplay();
       }
       render();
-    });
+    }, mark.fallbacks || []);
   }
 
   function ensureFontLoaded(fontValue) {
@@ -1787,7 +1798,7 @@
     } else if (entry && entry.status === 'error') {
       els.markPreview.removeAttribute('src');
     } else {
-      const fallback = buildAssetCandidates(source.src)[0];
+      const fallback = buildAssetCandidates(source.src, source.fallbacks || [])[0];
       if (fallback && els.markPreview.getAttribute('src') !== fallback) {
         els.markPreview.src = fallback;
       }
@@ -2881,10 +2892,11 @@
               : clamp((srcLum - bgLum - 0.1) / 0.42, 0, 1));
 
           let alpha = hasIntrinsicAlpha
-            ? srcA * clamp(0.36 + toneMask * 0.84, 0, 1)
-            : Math.pow(toneMask, 1.16);
+            ? srcA * clamp(0.58 + toneMask * 0.95, 0, 1)
+            : Math.pow(toneMask, 0.88);
 
-          if (alpha < (hasIntrinsicAlpha ? 0.035 : 0.07)) {
+          alpha = clamp(alpha * 1.15, 0, 1);
+          if (alpha < (hasIntrinsicAlpha ? 0.02 : 0.045)) {
             alpha = 0;
           }
 
@@ -2910,8 +2922,8 @@
       }
       ctx.translate(-center.x, -center.y);
 
-      ctx.globalCompositeOperation = 'darken';
-      ctx.globalAlpha = mark.opacity;
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = clamp(mark.opacity * 1.18, 0, 1);
       ctx.drawImage(markCanvas, mark.x, mark.y, mark.w, mark.h);
 
       ctx.restore();
@@ -3440,6 +3452,69 @@
     return { x, y, w, h };
   }
 
+  function resizeMarkFromHandleLockedAspect(start, handle, dx, dy) {
+    const corners = {
+      nw: { x: start.x, y: start.y },
+      ne: { x: start.x + start.w, y: start.y },
+      se: { x: start.x + start.w, y: start.y + start.h },
+      sw: { x: start.x, y: start.y + start.h }
+    };
+    const oppositeByHandle = {
+      nw: 'se',
+      ne: 'sw',
+      se: 'nw',
+      sw: 'ne'
+    };
+
+    const activeHandle = corners[handle] ? handle : 'se';
+    const opposite = corners[oppositeByHandle[activeHandle]];
+    const draggedStart = corners[activeHandle];
+    const dragged = {
+      x: draggedStart.x + dx,
+      y: draggedStart.y + dy
+    };
+
+    let rawW = Math.abs(dragged.x - opposite.x);
+    let rawH = Math.abs(dragged.y - opposite.y);
+    rawW = clamp(rawW, markMinW, state.width);
+    rawH = clamp(rawH, markMinH, state.height);
+
+    const aspect = Math.max(0.0001, start.w / Math.max(1, start.h));
+    let w = rawW;
+    let h = rawH;
+    if (w / h > aspect) {
+      h = w / aspect;
+    } else {
+      w = h * aspect;
+    }
+
+    w = clamp(w, markMinW, state.width);
+    h = clamp(h, markMinH, state.height);
+    if (w / h > aspect) {
+      w = h * aspect;
+    } else {
+      h = w / aspect;
+    }
+
+    let x = opposite.x;
+    let y = opposite.y;
+    if (activeHandle.includes('w')) {
+      x = opposite.x - w;
+    }
+    if (activeHandle.includes('n')) {
+      y = opposite.y - h;
+    }
+
+    const minX = -w + markMinVisible;
+    const maxX = state.width - markMinVisible;
+    const minY = -h + markMinVisible;
+    const maxY = state.height - markMinVisible;
+    x = clamp(x, minX, maxX);
+    y = clamp(y, minY, maxY);
+
+    return { x, y, w, h };
+  }
+
   function handlePresetChange(value) {
     if (value === 'custom') {
       return;
@@ -3836,7 +3911,7 @@
         const localDx = local.x - state.interaction.startLocalX;
         const localDy = local.y - state.interaction.startLocalY;
 
-        const resized = resizeRectFromHandle(start, state.interaction.handle, localDx, localDy, markMinW, markMinH, false);
+        const resized = resizeMarkFromHandleLockedAspect(start, state.interaction.handle, localDx, localDy);
         mark.x = resized.x;
         mark.y = resized.y;
         mark.w = resized.w;
